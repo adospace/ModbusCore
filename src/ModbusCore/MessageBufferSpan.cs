@@ -1,4 +1,6 @@
-﻿namespace ModbusCore
+﻿using System;
+
+namespace ModbusCore
 {
     public class MessageBufferSpan
     {
@@ -13,7 +15,13 @@
 
         public byte this[int index]
         {
-            get => _messageBuffer[StartIndex + index];
+            get
+            {
+                if (index < 0 || StartIndex + index >= _messageBuffer.Length)
+                    throw new ArgumentOutOfRangeException();
+
+                return _messageBuffer[StartIndex + index];
+            }
         }
 
         public ushort StartIndex { get; }

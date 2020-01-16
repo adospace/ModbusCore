@@ -2,6 +2,9 @@
 {
     public interface IModbusRegistersTable
     {
-        ushort this[int index] { get; set; }
+        int this[int index] { get; set; }
+
+        int Length { get; }
+
     }
 }

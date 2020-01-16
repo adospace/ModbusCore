@@ -119,12 +119,12 @@ namespace ModbusCore.Tests
             master.ReceiveReadHoldingRegistersResponse(offset, count);
 
             //slave memory not touched
-            slaveMemory.OutputRegisters[10].ShouldBe((ushort)23);
-            slaveMemory.OutputRegisters[15].ShouldBe((ushort)45);
+            slaveMemory.OutputRegisters[10].ShouldBe(23);
+            slaveMemory.OutputRegisters[15].ShouldBe(45);
 
             //master memory is synched
-            masterMemory.OutputRegisters[10].ShouldBe((ushort)23);
-            masterMemory.OutputRegisters[15].ShouldBe((ushort)45);
+            masterMemory.OutputRegisters[10].ShouldBe(23);
+            masterMemory.OutputRegisters[15].ShouldBe(45);
         }
 
         [TestMethod]
@@ -159,12 +159,12 @@ namespace ModbusCore.Tests
             master.ReceiveReadInputRegistersResponse(offset, count);
 
             //slave memory not touched
-            slaveMemory.InputRegisters[12].ShouldBe((ushort)23);
-            slaveMemory.InputRegisters[13].ShouldBe((ushort)45);
+            slaveMemory.InputRegisters[12].ShouldBe(23);
+            slaveMemory.InputRegisters[13].ShouldBe(45);
 
             //master memory is synched
-            masterMemory.InputRegisters[12].ShouldBe((ushort)23);
-            masterMemory.InputRegisters[13].ShouldBe((ushort)45);
+            masterMemory.InputRegisters[12].ShouldBe(23);
+            masterMemory.InputRegisters[13].ShouldBe(45);
         }
 
         [TestMethod]
@@ -214,7 +214,7 @@ namespace ModbusCore.Tests
             var slaveMemory = new ModbusMemoryMap();
             var slave = new ModbusRTUSlave(slaveMemory, dummyStreamConnectedToSlave, 4);
 
-            slaveMemory.OutputRegisters[29].ShouldBe((ushort)0);
+            slaveMemory.OutputRegisters[29].ShouldBe(0);
 
             master.SendWriteSingleRegisterRequest(29, 542);
 
@@ -233,10 +233,103 @@ namespace ModbusCore.Tests
             master.ReceiveWriteSingleRegisterResponse(offset);
 
             //slave memory is updated
-            slaveMemory.OutputRegisters[29].ShouldBe((ushort)542);
+            slaveMemory.OutputRegisters[29].ShouldBe(542);
 
             //master memory is synched
-            masterMemory.OutputRegisters[29].ShouldBe((ushort)542);
+            masterMemory.OutputRegisters[29].ShouldBe(542);
+        }
+
+        [TestMethod]
+        public void MasterShouldWriteMultipleCoilsToSlave()
+        {
+            var dummyStreamConnectedToSlave = new MemoryStream();
+
+            var masterMemory = new ModbusMemoryMap();
+            var master = new ModbusRTUMaster(masterMemory, dummyStreamConnectedToSlave, 4);
+
+            var slaveMemory = new ModbusMemoryMap();
+            var slave = new ModbusRTUSlave(slaveMemory, dummyStreamConnectedToSlave, 4);
+
+            slaveMemory.OutputCoils[29].ShouldBeFalse();
+            slaveMemory.OutputCoils[30].ShouldBeFalse();
+            slaveMemory.OutputCoils[31].ShouldBeFalse();
+
+            master.SendWriteMultipleCoilsRequest(29, true, false, true);
+
+            dummyStreamConnectedToSlave.Seek(0, SeekOrigin.Begin);
+
+            slave.HandleWriteMultipleCoilsRequest(out var offset, out var countOfValues);
+
+            offset.ShouldBe(29);
+            countOfValues.ShouldBe(3);
+
+            dummyStreamConnectedToSlave.Seek(0, SeekOrigin.Begin);
+
+            slave.HandleWriteMultipleCoilsResponse(offset, countOfValues);
+
+            dummyStreamConnectedToSlave.Seek(0, SeekOrigin.Begin);
+
+            master.ReceiveWriteMultipleCoilsResponse(offset, out countOfValues);
+
+            countOfValues.ShouldBe(3);
+
+            //slave memory is updated
+            slaveMemory.OutputCoils[29].ShouldBeTrue();
+            slaveMemory.OutputCoils[30].ShouldBeFalse();
+            slaveMemory.OutputCoils[31].ShouldBeTrue();
+
+            //master memory is synched
+            slaveMemory.OutputCoils[29].ShouldBeTrue();
+            slaveMemory.OutputCoils[30].ShouldBeFalse();
+            slaveMemory.OutputCoils[31].ShouldBeTrue();
+        }
+
+        [TestMethod]
+        public void MasterShouldWriteMultipleRegistersToSlave()
+        {
+            var dummyStreamConnectedToSlave = new MemoryStream();
+
+            var masterMemory = new ModbusMemoryMap();
+            var master = new ModbusRTUMaster(masterMemory, dummyStreamConnectedToSlave, 4);
+
+            var slaveMemory = new ModbusMemoryMap();
+            var slave = new ModbusRTUSlave(slaveMemory, dummyStreamConnectedToSlave, 4);
+
+            slaveMemory.OutputRegisters[35].ShouldBe(0);
+            slaveMemory.OutputRegisters[36].ShouldBe(0);
+            slaveMemory.OutputRegisters[37].ShouldBe(0);
+            slaveMemory.OutputRegisters[38].ShouldBe(0);
+
+            master.SendWriteMultipleRegistersRequest(35, 123, 2, 7, 15);
+
+            dummyStreamConnectedToSlave.Seek(0, SeekOrigin.Begin);
+
+            slave.HandleWriteMultipleRegistersRequest(out var offset, out var countOfValues);
+
+            offset.ShouldBe(35);
+            countOfValues.ShouldBe(4);
+
+            dummyStreamConnectedToSlave.Seek(0, SeekOrigin.Begin);
+
+            slave.HandleWriteMultipleRegistersResponse(offset, countOfValues);
+
+            dummyStreamConnectedToSlave.Seek(0, SeekOrigin.Begin);
+
+            master.ReceiveWriteMultipleRegistersResponse(offset, out countOfValues);
+
+            countOfValues.ShouldBe(4);
+
+            //slave memory is updated
+            slaveMemory.OutputRegisters[35].ShouldBe(123);
+            slaveMemory.OutputRegisters[36].ShouldBe(2);
+            slaveMemory.OutputRegisters[37].ShouldBe(7);
+            slaveMemory.OutputRegisters[38].ShouldBe(15);
+
+            //master memory is synched
+            slaveMemory.OutputRegisters[35].ShouldBe(123);
+            slaveMemory.OutputRegisters[36].ShouldBe(2);
+            slaveMemory.OutputRegisters[37].ShouldBe(7);
+            slaveMemory.OutputRegisters[38].ShouldBe(15);
         }
 
     }

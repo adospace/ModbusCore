@@ -15,9 +15,20 @@ namespace ModbusCore
             }
         }
 
+        internal static void CopyTo(this int[] table, IMessageBufferWriter bufferWriter)
+        {
+            bufferWriter.Push((byte)(table.Length * 2));
+
+            for (var i = 0; i < table.Length; i++)
+            {
+                bufferWriter.Push((byte)((table[i] >> 8) & 0xFF));
+                bufferWriter.Push((byte)(table[i] & 0xFF));
+            }
+        }
+
         internal static void CopyFrom(this IModbusRegistersTable table, MessageBufferSpan messageBufferSpan, int offset, int count)
         {
-            for (var i = 0; i < count * 2; i++)
+            for (var i = 0; i < count; i++)
             {
                 table[i + offset] = (ushort)((messageBufferSpan[i * 2] << 8) + messageBufferSpan[i * 2 + 1] & 0xFFFF);
             }

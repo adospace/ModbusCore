@@ -14,5 +14,7 @@ namespace ModbusCore
             get => _table[index];
             set => _table[index] = value;
         }
+
+        public int Length => _table.Length;
     }
 }

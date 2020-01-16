@@ -24,30 +24,60 @@ namespace ModbusCore
             switch (functionCode)
             {
                 case ModbusFunctionCode.ReadDiscreteInputs:
+                    {
+                        HandleReadRequest(messageBufferReader, out var offset, out var count);
+                        HandleReadDiscreteInputsResponse(offset, count);
+                    }
                     break;
 
                 case ModbusFunctionCode.ReadCoils:
-                    HandleReadRequest(messageBufferReader, out var offset, out var count);
-                    HandleReadCoilsResponse(offset, count);
+                    {
+                        HandleReadRequest(messageBufferReader, out var offset, out var count);
+                        HandleReadCoilsResponse(offset, count);
+                    }
                     return;
 
                 case ModbusFunctionCode.WriteSingleCoil:
-                    break;
+                    {
+                        HandleWriteSingleCoilRequest(messageBufferReader, out var offset);
+                        HandleWriteSingleCoilResponse(offset);
+                    }
+                    return;
 
                 case ModbusFunctionCode.WriteMultipleCoils:
-                    break;
+                    {
+                        HandleWriteMultipleCoilsRequest(messageBufferReader, out var offset, out var count);
+                        HandleWriteMultipleCoilsResponse(offset, count);
+                    }
+                    return;
 
                 case ModbusFunctionCode.ReadInputRegisters:
-                    break;
+                    {
+                        HandleReadRequest(messageBufferReader, out var offset, out var count);
+                        HandleReadInputRegistersResponse(offset, count);
+                    }
+                    return;
 
                 case ModbusFunctionCode.ReadHoldingRegisters:
-                    break;
+                    {
+                        HandleReadRequest(messageBufferReader, out var offset, out var count);
+                        HandleReadHoldingRegistersResponse(offset, count);
+                    }
+                    return;
 
                 case ModbusFunctionCode.WriteSingleRegister:
-                    break;
+                    {
+                        HandleWriteSingleRegisterRequest(messageBufferReader, out var offset);
+                        HandleWriteSingleRegisterResponse(offset);
+                    }
+                    return;
 
                 case ModbusFunctionCode.WriteMultipleRegisters:
-                    break;
+                    {
+                        HandleWriteMultipleRegistersRequest(messageBufferReader, out var offset, out var count);
+                        HandleWriteMultipleRegistersResponse(offset, count);
+                    }
+                    return;
 
                 case ModbusFunctionCode.ReadWriteMultipleRegisters:
                     break;
@@ -120,6 +150,11 @@ namespace ModbusCore
             if (messageBufferReader.PushFromStream() != (byte)ModbusFunctionCode.WriteSingleCoil)
                 throw new InvalidOperationException();
 
+            HandleWriteSingleCoilRequest(messageBufferReader, out zeroBasedOffset);
+        }
+
+        internal void HandleWriteSingleCoilRequest(IMessageBufferReader messageBufferReader, out int zeroBasedOffset)
+        {
             zeroBasedOffset = (ushort)((messageBufferReader.PushFromStream() << 8) + (messageBufferReader.PushFromStream() << 0));
 
             var value = messageBufferReader.PushFromStream() == 0xFF;
@@ -159,6 +194,11 @@ namespace ModbusCore
             if (messageBufferReader.PushFromStream() != (byte)ModbusFunctionCode.WriteSingleRegister)
                 throw new InvalidOperationException();
 
+            HandleWriteSingleRegisterRequest(messageBufferReader, out zeroBasedOffset);
+        }
+
+        private void HandleWriteSingleRegisterRequest(IMessageBufferReader messageBufferReader, out int zeroBasedOffset)
+        {
             zeroBasedOffset = (ushort)((messageBufferReader.PushFromStream() << 8) + (messageBufferReader.PushFromStream() << 0));
             var value = (ushort)((messageBufferReader.PushFromStream() << 8) + (messageBufferReader.PushFromStream() << 0));
 
@@ -178,6 +218,100 @@ namespace ModbusCore
             messageBufferWriter.Push((byte)((zeroBasedOffset >> 0) & 0xFF));
             messageBufferWriter.Push((byte)((MemoryMap.OutputRegisters[zeroBasedOffset] >> 8) & 0xFF));
             messageBufferWriter.Push((byte)((MemoryMap.OutputRegisters[zeroBasedOffset] >> 0) & 0xFF));
+
+            AppendCrcToResponse(messageBufferWriter);
+
+            _messageBuffer.WriteToStream(Stream);
+        }
+
+        internal void HandleWriteMultipleCoilsRequest(out int zeroBasedOffset, out int countOfValues)
+        {
+            using var messageBufferReader = _messageBuffer.BeginRead(Stream);
+
+            if (messageBufferReader.PushFromStream() != Address)
+                throw new InvalidOperationException();
+
+            if (messageBufferReader.PushFromStream() != (byte)ModbusFunctionCode.WriteMultipleCoils)
+                throw new InvalidOperationException();
+
+            HandleWriteMultipleCoilsRequest(out zeroBasedOffset, out countOfValues);
+        }
+
+        private void HandleWriteMultipleCoilsRequest(IMessageBufferReader messageBufferReader, out int zeroBasedOffset, out int countOfValues)
+        {
+            zeroBasedOffset = (ushort)((messageBufferReader.PushFromStream() << 8) + (messageBufferReader.PushFromStream() << 0));
+
+            countOfValues = (ushort)((messageBufferReader.PushFromStream() << 8) + (messageBufferReader.PushFromStream() << 0));
+
+            var byteCount = messageBufferReader.PushFromStream();
+
+            messageBufferReader.PushFromStream(byteCount);
+
+            CheckCrcIsValidFromRequest(messageBufferReader);
+
+            //update the memory map
+            MemoryMap.OutputCoils.CopyFrom(
+                        new MessageBufferSpan(_messageBuffer, (ushort)(_messageBuffer.Length - byteCount - 2), byteCount), zeroBasedOffset, countOfValues);
+        }
+
+        internal void HandleWriteMultipleCoilsResponse(int zeroBasedOffset, int count)
+        {
+            //write the response
+            using var messageBufferWriter = _messageBuffer.BeginWrite();
+            messageBufferWriter.Push((byte)((Address >> 0) & 0xFF));
+            messageBufferWriter.Push((byte)ModbusFunctionCode.WriteMultipleCoils);
+
+            messageBufferWriter.Push((byte)((zeroBasedOffset >> 8) & 0xFF));
+            messageBufferWriter.Push((byte)((zeroBasedOffset >> 0) & 0xFF));
+            messageBufferWriter.Push((byte)((count >> 8) & 0xFF));
+            messageBufferWriter.Push((byte)((count >> 0) & 0xFF));
+
+            AppendCrcToResponse(messageBufferWriter);
+
+            _messageBuffer.WriteToStream(Stream);
+        }
+
+        internal void HandleWriteMultipleRegistersRequest(out int zeroBasedOffset, out int countOfValues)
+        {
+            using var messageBufferReader = _messageBuffer.BeginRead(Stream);
+
+            if (messageBufferReader.PushFromStream() != Address)
+                throw new InvalidOperationException();
+
+            if (messageBufferReader.PushFromStream() != (byte)ModbusFunctionCode.WriteMultipleRegisters)
+                throw new InvalidOperationException();
+
+            HandleWriteMultipleRegistersRequest(messageBufferReader, out zeroBasedOffset, out countOfValues);
+        }
+
+        internal void HandleWriteMultipleRegistersRequest(IMessageBufferReader messageBufferReader, out int zeroBasedOffset, out int countOfValues)
+        {
+            zeroBasedOffset = (ushort)((messageBufferReader.PushFromStream() << 8) + (messageBufferReader.PushFromStream() << 0));
+
+            countOfValues = (ushort)((messageBufferReader.PushFromStream() << 8) + (messageBufferReader.PushFromStream() << 0));
+
+            var byteCount = messageBufferReader.PushFromStream();
+
+            messageBufferReader.PushFromStream(byteCount);
+
+            CheckCrcIsValidFromRequest(messageBufferReader);
+
+            //update the memory map
+            MemoryMap.OutputRegisters.CopyFrom(
+                        new MessageBufferSpan(_messageBuffer, (ushort)(_messageBuffer.Length - byteCount - 2), byteCount), zeroBasedOffset, countOfValues);
+        }
+
+        internal void HandleWriteMultipleRegistersResponse(int zeroBasedOffset, int count)
+        {
+            //write the response
+            using var messageBufferWriter = _messageBuffer.BeginWrite();
+            messageBufferWriter.Push((byte)((Address >> 0) & 0xFF));
+            messageBufferWriter.Push((byte)ModbusFunctionCode.WriteMultipleRegisters);
+
+            messageBufferWriter.Push((byte)((zeroBasedOffset >> 8) & 0xFF));
+            messageBufferWriter.Push((byte)((zeroBasedOffset >> 0) & 0xFF));
+            messageBufferWriter.Push((byte)((count >> 8) & 0xFF));
+            messageBufferWriter.Push((byte)((count >> 0) & 0xFF));
 
             AppendCrcToResponse(messageBufferWriter);
 
