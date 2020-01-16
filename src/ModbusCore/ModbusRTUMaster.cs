@@ -34,17 +34,51 @@ namespace ModbusCore
             ReceiveReadDiscreteInputsResponse(zeroBasedOffset, count);
         }
 
+        public void ReadHoldingRegisters(int zeroBasedOffset, int count)
+        {
+            Validate.Between(nameof(count), count, 0, 2000);
+            Validate.Between(nameof(zeroBasedOffset) + " + " + nameof(zeroBasedOffset), zeroBasedOffset + count, 0, ushort.MaxValue);
+            Validate.Between(nameof(zeroBasedOffset), zeroBasedOffset, 0, count - zeroBasedOffset);
+
+            SendReadHoldingRegistersRequest(zeroBasedOffset, count);
+
+            ReceiveReadHoldingRegistersResponse(zeroBasedOffset, count);
+        }
+
+        public void ReadInputRegisters(int zeroBasedOffset, int count)
+        {
+            Validate.Between(nameof(count), count, 0, 2000);
+            Validate.Between(nameof(zeroBasedOffset) + " + " + nameof(zeroBasedOffset), zeroBasedOffset + count, 0, ushort.MaxValue);
+            Validate.Between(nameof(zeroBasedOffset), zeroBasedOffset, 0, count - zeroBasedOffset);
+
+            SendReadInputRegistersRequest(zeroBasedOffset, count);
+
+            ReceiveReadInputRegistersResponse(zeroBasedOffset, count);
+        }
+
         internal void ReceiveReadCoilsResponse(int zeroBasedOffset, int count)
             => ReceiveBitArrayResponse(zeroBasedOffset, count, ModbusFunctionCode.ReadCoils);
 
         internal void ReceiveReadDiscreteInputsResponse(int zeroBasedOffset, int count)
             => ReceiveBitArrayResponse(zeroBasedOffset, count, ModbusFunctionCode.ReadDiscreteInputs);
 
+        internal void ReceiveReadHoldingRegistersResponse(int zeroBasedOffset, int count)
+            => ReceiveBitArrayResponse(zeroBasedOffset, count, ModbusFunctionCode.ReadHoldingRegisters);
+
+        internal void ReceiveReadInputRegistersResponse(int zeroBasedOffset, int count)
+            => ReceiveBitArrayResponse(zeroBasedOffset, count, ModbusFunctionCode.ReadInputRegisters);
+
         internal void SendReadCoilsRequest(int zeroBasedOffset, int count)
             => SendBitArrayRequest(zeroBasedOffset, count, ModbusFunctionCode.ReadCoils);
 
         internal void SendReadDiscreteInputsRequest(int zeroBasedOffset, int count)
             => SendBitArrayRequest(zeroBasedOffset, count, ModbusFunctionCode.ReadDiscreteInputs);
+
+        internal void SendReadHoldingRegistersRequest(int zeroBasedOffset, int count)
+            => SendBitArrayRequest(zeroBasedOffset, count, ModbusFunctionCode.ReadHoldingRegisters);
+
+        internal void SendReadInputRegistersRequest(int zeroBasedOffset, int count)
+            => SendBitArrayRequest(zeroBasedOffset, count, ModbusFunctionCode.ReadInputRegisters);
 
         private void AppendCrcToRequest(IMessageBufferWriter messageBufferWriter)
         {
@@ -95,15 +129,24 @@ namespace ModbusCore
             CheckCrcIsValidFromResponse(messageBufferReader);
 
             //update the memory map
-            if (expectedFunctionCode == ModbusFunctionCode.ReadCoils)
+            switch (expectedFunctionCode)
             {
-                MemoryMap.OutputCoils.CopyFrom(
-                    new MessageBufferSpan(_messageBuffer, (ushort)(_messageBuffer.Length - byteCount - 2), byteCount), zeroBasedOffset, count);
-            }
-            else //if (expectedFunctionCode == ModbusFunctionCode.ReadDiscreteInputs)
-            {
-                MemoryMap.InputCoils.CopyFrom(
-                    new MessageBufferSpan(_messageBuffer, (ushort)(_messageBuffer.Length - byteCount - 2), byteCount), zeroBasedOffset, count);
+                case ModbusFunctionCode.ReadCoils:
+                    MemoryMap.OutputCoils.CopyFrom(
+                        new MessageBufferSpan(_messageBuffer, (ushort)(_messageBuffer.Length - byteCount - 2), byteCount), zeroBasedOffset, count);
+                    break;
+                case ModbusFunctionCode.ReadDiscreteInputs:
+                    MemoryMap.InputCoils.CopyFrom(
+                        new MessageBufferSpan(_messageBuffer, (ushort)(_messageBuffer.Length - byteCount - 2), byteCount), zeroBasedOffset, count);
+                    break;
+                case ModbusFunctionCode.ReadHoldingRegisters:
+                    MemoryMap.OutputRegisters.CopyFrom(
+                        new MessageBufferSpan(_messageBuffer, (ushort)(_messageBuffer.Length - byteCount - 2), byteCount), zeroBasedOffset, count);
+                    break;
+                case ModbusFunctionCode.ReadInputRegisters:
+                    MemoryMap.OutputRegisters.CopyFrom(
+                        new MessageBufferSpan(_messageBuffer, (ushort)(_messageBuffer.Length - byteCount - 2), byteCount), zeroBasedOffset, count);
+                    break;
             }
         }
         

@@ -7,7 +7,7 @@
         WriteSingleCoil = 0x05,
         WriteMultipleCoils = 0x0F,
 
-        ReadInputRegister = 0x04,
+        ReadInputRegisters = 0x04,
         ReadHoldingRegisters = 0x03,
         WriteSingleRegister = 0x06,
         WriteMultipleRegisters = 0x10,

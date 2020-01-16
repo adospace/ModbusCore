@@ -37,7 +37,7 @@ namespace ModbusCore
                 case ModbusFunctionCode.WriteMultipleCoils:
                     break;
 
-                case ModbusFunctionCode.ReadInputRegister:
+                case ModbusFunctionCode.ReadInputRegisters:
                     break;
 
                 case ModbusFunctionCode.ReadHoldingRegisters:
@@ -92,11 +92,23 @@ namespace ModbusCore
         internal void HandleReadCoilsResponse(int zeroBasedOffset, int count)
             => HandleBitArrayResponse(zeroBasedOffset, count, ModbusFunctionCode.ReadCoils);
 
+        internal void HandleReadHoldingRegistersRequest(out int zeroBasedOffset, out int count)
+            => HandleReadRequest(ModbusFunctionCode.ReadHoldingRegisters, out zeroBasedOffset, out count);
+
+        internal void HandleReadHoldingRegistersResponse(int zeroBasedOffset, int count)
+            => HandleRegisterArrayResponse(zeroBasedOffset, count, ModbusFunctionCode.ReadHoldingRegisters);
+
         internal void HandleReadDiscreteInputsRequest(out int zeroBasedOffset, out int count)
                     => HandleReadRequest(ModbusFunctionCode.ReadDiscreteInputs, out zeroBasedOffset, out count);
 
         internal void HandleReadDiscreteInputsResponse(int zeroBasedOffset, int count)
             => HandleBitArrayResponse(zeroBasedOffset, count, ModbusFunctionCode.ReadDiscreteInputs);
+
+        internal void HandleReadInputRegistersRequest(out int zeroBasedOffset, out int count)
+            => HandleReadRequest(ModbusFunctionCode.ReadInputRegisters, out zeroBasedOffset, out count);
+
+        internal void HandleReadInputRegistersResponse(int zeroBasedOffset, int count)
+            => HandleRegisterArrayResponse(zeroBasedOffset, count, ModbusFunctionCode.ReadInputRegisters);
 
         private void AppendCrcToResponse(IMessageBufferWriter messageBufferWriter)
         {
@@ -137,6 +149,27 @@ namespace ModbusCore
             else
             {
                 MemoryMap.InputCoils.CopyTo(messageBufferWriter, zeroBasedOffset, count);
+            }
+
+            AppendCrcToResponse(messageBufferWriter);
+
+            _messageBuffer.WriteToStream(Stream);
+        }
+
+        private void HandleRegisterArrayResponse(int zeroBasedOffset, int count, ModbusFunctionCode functionCode)
+        {
+            //write the response
+            using var messageBufferWriter = _messageBuffer.BeginWrite();
+            messageBufferWriter.Push((byte)((Address >> 0) & 0xFF));
+            messageBufferWriter.Push((byte)functionCode);
+
+            if (functionCode == ModbusFunctionCode.ReadHoldingRegisters)
+            {
+                MemoryMap.OutputRegisters.CopyTo(messageBufferWriter, zeroBasedOffset, count);
+            }
+            else
+            {
+                MemoryMap.InputRegisters.CopyTo(messageBufferWriter, zeroBasedOffset, count);
             }
 
             AppendCrcToResponse(messageBufferWriter);
