@@ -3,7 +3,7 @@ using System.IO;
 
 namespace ModbusCore
 {
-    public class ModbusRTUSlave : ModbusDevice
+    public class ModbusRTUSlave : ModbusDevice, IModbusSlave
     {
         private readonly MessageBuffer _messageBuffer = new MessageBuffer();
 
@@ -27,7 +27,7 @@ namespace ModbusCore
                     break;
 
                 case ModbusFunctionCode.ReadCoils:
-                    HandleReadCoilsRequest(messageBufferReader, out var offset, out var count);
+                    HandleReadRequest(messageBufferReader, out var offset, out var count);
                     HandleReadCoilsResponse(offset, count);
                     return;
 
@@ -87,31 +87,16 @@ namespace ModbusCore
         }
 
         internal void HandleReadCoilsRequest(out int zeroBasedOffset, out int count)
-        {
-            using var messageBufferReader = _messageBuffer.BeginRead(Stream);
-
-            if (messageBufferReader.PushFromStream() != Address)
-                throw new InvalidOperationException();
-
-            if (messageBufferReader.PushFromStream() != (byte)ModbusFunctionCode.ReadCoils)
-                throw new InvalidOperationException();
-
-            HandleReadCoilsRequest(messageBufferReader, out zeroBasedOffset, out count);
-        }
+            => HandleReadRequest(ModbusFunctionCode.ReadCoils, out zeroBasedOffset, out count);
 
         internal void HandleReadCoilsResponse(int zeroBasedOffset, int count)
-        {
-            //write the response
-            using var messageBufferWriter = _messageBuffer.BeginWrite();
-            messageBufferWriter.Push((byte)((Address >> 0) & 0xFF));
-            messageBufferWriter.Push((byte)ModbusFunctionCode.ReadCoils);
+            => HandleBitArrayResponse(zeroBasedOffset, count, ModbusFunctionCode.ReadCoils);
 
-            MemoryMap.InputCoils.CopyTo(messageBufferWriter, zeroBasedOffset, count);
+        internal void HandleReadDiscreteInputsRequest(out int zeroBasedOffset, out int count)
+                    => HandleReadRequest(ModbusFunctionCode.ReadDiscreteInputs, out zeroBasedOffset, out count);
 
-            AppendCrcToResponse(messageBufferWriter);
-
-            _messageBuffer.WriteToStream(Stream);
-        }
+        internal void HandleReadDiscreteInputsResponse(int zeroBasedOffset, int count)
+            => HandleBitArrayResponse(zeroBasedOffset, count, ModbusFunctionCode.ReadDiscreteInputs);
 
         private void AppendCrcToResponse(IMessageBufferWriter messageBufferWriter)
         {
@@ -137,7 +122,42 @@ namespace ModbusCore
                 throw new ModbusInvalidCRCException();
             }
         }
-        private void HandleReadCoilsRequest(IMessageBufferReader messageBufferReader, out int zeroBasedOffset, out int count)
+
+        private void HandleBitArrayResponse(int zeroBasedOffset, int count, ModbusFunctionCode functionCode)
+        {
+            //write the response
+            using var messageBufferWriter = _messageBuffer.BeginWrite();
+            messageBufferWriter.Push((byte)((Address >> 0) & 0xFF));
+            messageBufferWriter.Push((byte)functionCode);
+
+            if (functionCode == ModbusFunctionCode.ReadCoils)
+            {
+                MemoryMap.OutputCoils.CopyTo(messageBufferWriter, zeroBasedOffset, count);
+            }
+            else
+            {
+                MemoryMap.InputCoils.CopyTo(messageBufferWriter, zeroBasedOffset, count);
+            }
+
+            AppendCrcToResponse(messageBufferWriter);
+
+            _messageBuffer.WriteToStream(Stream);
+        }
+
+        private void HandleReadRequest(ModbusFunctionCode functionCode, out int zeroBasedOffset, out int count)
+        {
+            using var messageBufferReader = _messageBuffer.BeginRead(Stream);
+
+            if (messageBufferReader.PushFromStream() != Address)
+                throw new InvalidOperationException();
+
+            if (messageBufferReader.PushFromStream() != (byte)functionCode)
+                throw new InvalidOperationException();
+
+            HandleReadRequest(messageBufferReader, out zeroBasedOffset, out count);
+        }
+
+        private void HandleReadRequest(IMessageBufferReader messageBufferReader, out int zeroBasedOffset, out int count)
         {
             zeroBasedOffset = (ushort)((messageBufferReader.PushFromStream() << 8) + (messageBufferReader.PushFromStream() << 0));
             count = (ushort)((messageBufferReader.PushFromStream() << 8) + (messageBufferReader.PushFromStream() << 0));

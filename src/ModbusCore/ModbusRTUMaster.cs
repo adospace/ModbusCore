@@ -23,48 +23,38 @@ namespace ModbusCore
             ReceiveReadCoilsResponse(zeroBasedOffset, count);
         }
 
-        internal void ReceiveReadCoilsResponse(int zeroBasedOffset, int count)
+        public void ReadDiscreteInputs(int zeroBasedOffset, int count)
         {
-            using var messageBufferReader = _messageBuffer.BeginRead(Stream);
-            if (messageBufferReader.PushFromStream() != Address)
-                throw new InvalidOperationException();
+            Validate.Between(nameof(count), count, 0, 2000);
+            Validate.Between(nameof(zeroBasedOffset) + " + " + nameof(zeroBasedOffset), zeroBasedOffset + count, 0, ushort.MaxValue);
+            Validate.Between(nameof(zeroBasedOffset), zeroBasedOffset, 0, count - zeroBasedOffset);
 
-            byte functionCode = messageBufferReader.PushFromStream();
+            SendReadDiscreteInputsRequest(zeroBasedOffset, count);
 
-            if (functionCode == ((byte)ModbusFunctionCode.ReadCoils | 0x80))
-            {
-                var exceptionCode = (ModbusExceptionCode)messageBufferReader.PushFromStream();
-                throw new ModbusException(exceptionCode);
-            }
-
-            if (functionCode != (byte)ModbusFunctionCode.ReadCoils)
-                throw new InvalidOperationException();
-
-            var byteCount = messageBufferReader.PushFromStream();
-
-            //read coils status
-            messageBufferReader.PushFromStream(byteCount);
-
-            CheckCrcIsValidFromResponse(messageBufferReader);
-
-            //update the memory map
-            MemoryMap.InputCoils.CopyFrom(
-                new MessageBufferSpan(_messageBuffer, (ushort)(_messageBuffer.Length - byteCount - 2), byteCount), zeroBasedOffset, count);
+            ReceiveReadDiscreteInputsResponse(zeroBasedOffset, count);
         }
 
+        internal void ReceiveReadCoilsResponse(int zeroBasedOffset, int count)
+            => ReceiveBitArrayResponse(zeroBasedOffset, count, ModbusFunctionCode.ReadCoils);
+
+        internal void ReceiveReadDiscreteInputsResponse(int zeroBasedOffset, int count)
+            => ReceiveBitArrayResponse(zeroBasedOffset, count, ModbusFunctionCode.ReadDiscreteInputs);
+
         internal void SendReadCoilsRequest(int zeroBasedOffset, int count)
+            => SendBitArrayRequest(zeroBasedOffset, count, ModbusFunctionCode.ReadCoils);
+
+        internal void SendReadDiscreteInputsRequest(int zeroBasedOffset, int count)
+            => SendBitArrayRequest(zeroBasedOffset, count, ModbusFunctionCode.ReadDiscreteInputs);
+
+        private void AppendCrcToRequest(IMessageBufferWriter messageBufferWriter)
         {
-            using var messageBufferWriter = _messageBuffer.BeginWrite();
-            messageBufferWriter.Push((byte)((Address >> 0) & 0xFF));
-            messageBufferWriter.Push((byte)ModbusFunctionCode.ReadCoils);
-            messageBufferWriter.Push((byte)((zeroBasedOffset >> 8) & 0xFF));
-            messageBufferWriter.Push((byte)((zeroBasedOffset >> 0) & 0xFF));
-            messageBufferWriter.Push((byte)((count >> 8) & 0xFF));
-            messageBufferWriter.Push((byte)((count >> 0) & 0xFF));
+            var crc = CrcUtils.CRC16(_messageBuffer);
 
-            AppendCrcToRequest(messageBufferWriter);
+            // Write the high nibble of the CRC
+            messageBufferWriter.Push((byte)(((crc & 0xFF00) >> 8) & 0xFF));
 
-            _messageBuffer.WriteToStream(Stream);
+            // Write the low nibble of the CRC
+            messageBufferWriter.Push((byte)((crc & 0x00FF) & 0xFF));
         }
 
         private void CheckCrcIsValidFromResponse(IMessageBufferReader messageBufferReader)
@@ -81,15 +71,55 @@ namespace ModbusCore
             }
         }
 
-        private void AppendCrcToRequest(IMessageBufferWriter messageBufferWriter)
+        private void ReceiveBitArrayResponse(int zeroBasedOffset, int count, ModbusFunctionCode expectedFunctionCode)
         {
-            var crc = CrcUtils.CRC16(_messageBuffer);
+            using var messageBufferReader = _messageBuffer.BeginRead(Stream);
+            if (messageBufferReader.PushFromStream() != Address)
+                throw new InvalidOperationException();
 
-            // Write the high nibble of the CRC
-            messageBufferWriter.Push((byte)(((crc & 0xFF00) >> 8) & 0xFF));
+            byte functionCode = messageBufferReader.PushFromStream();
 
-            // Write the low nibble of the CRC
-            messageBufferWriter.Push((byte)((crc & 0x00FF) & 0xFF));
+            if (functionCode == ((byte)expectedFunctionCode | 0x80))
+            {
+                var exceptionCode = (ModbusExceptionCode)messageBufferReader.PushFromStream();
+                throw new ModbusException(exceptionCode);
+            }
+
+            if (functionCode != (byte)expectedFunctionCode)
+                throw new InvalidOperationException();
+
+            var byteCount = messageBufferReader.PushFromStream();
+
+            messageBufferReader.PushFromStream(byteCount);
+
+            CheckCrcIsValidFromResponse(messageBufferReader);
+
+            //update the memory map
+            if (expectedFunctionCode == ModbusFunctionCode.ReadCoils)
+            {
+                MemoryMap.OutputCoils.CopyFrom(
+                    new MessageBufferSpan(_messageBuffer, (ushort)(_messageBuffer.Length - byteCount - 2), byteCount), zeroBasedOffset, count);
+            }
+            else //if (expectedFunctionCode == ModbusFunctionCode.ReadDiscreteInputs)
+            {
+                MemoryMap.InputCoils.CopyFrom(
+                    new MessageBufferSpan(_messageBuffer, (ushort)(_messageBuffer.Length - byteCount - 2), byteCount), zeroBasedOffset, count);
+            }
+        }
+        
+        private void SendBitArrayRequest(int zeroBasedOffset, int count, ModbusFunctionCode functionCode)
+        {
+            using var messageBufferWriter = _messageBuffer.BeginWrite();
+            messageBufferWriter.Push((byte)((Address >> 0) & 0xFF));
+            messageBufferWriter.Push((byte)functionCode);
+            messageBufferWriter.Push((byte)((zeroBasedOffset >> 8) & 0xFF));
+            messageBufferWriter.Push((byte)((zeroBasedOffset >> 0) & 0xFF));
+            messageBufferWriter.Push((byte)((count >> 8) & 0xFF));
+            messageBufferWriter.Push((byte)((count >> 0) & 0xFF));
+
+            AppendCrcToRequest(messageBufferWriter);
+
+            _messageBuffer.WriteToStream(Stream);
         }
     }
 }
