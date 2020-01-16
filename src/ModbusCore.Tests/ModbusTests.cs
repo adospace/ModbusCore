@@ -167,5 +167,77 @@ namespace ModbusCore.Tests
             masterMemory.InputRegisters[13].ShouldBe((ushort)45);
         }
 
+        [TestMethod]
+        public void MasterShouldWriteSingleCoilToSlave()
+        {
+            var dummyStreamConnectedToSlave = new MemoryStream();
+
+            var masterMemory = new ModbusMemoryMap();
+            var master = new ModbusRTUMaster(masterMemory, dummyStreamConnectedToSlave, 4);
+
+            var slaveMemory = new ModbusMemoryMap();
+            var slave = new ModbusRTUSlave(slaveMemory, dummyStreamConnectedToSlave, 4);
+
+            slaveMemory.OutputCoils[29].ShouldBeFalse();
+
+            master.SendWriteSingleCoilRequest(29, true);
+
+            dummyStreamConnectedToSlave.Seek(0, SeekOrigin.Begin);
+
+            slave.HandleWriteSingleCoilRequest(out var offset);
+
+            offset.ShouldBe(29);
+
+            dummyStreamConnectedToSlave.Seek(0, SeekOrigin.Begin);
+
+            slave.HandleWriteSingleCoilResponse(offset);
+
+            dummyStreamConnectedToSlave.Seek(0, SeekOrigin.Begin);
+
+            master.ReceiveWriteSingleCoilResponse(offset);
+
+            //slave memory is updated
+            slaveMemory.OutputCoils[29].ShouldBeTrue();
+
+            //master memory is synched
+            masterMemory.OutputCoils[29].ShouldBeTrue();
+        }
+
+        [TestMethod]
+        public void MasterShouldWriteSingleRegisterToSlave()
+        {
+            var dummyStreamConnectedToSlave = new MemoryStream();
+
+            var masterMemory = new ModbusMemoryMap();
+            var master = new ModbusRTUMaster(masterMemory, dummyStreamConnectedToSlave, 4);
+
+            var slaveMemory = new ModbusMemoryMap();
+            var slave = new ModbusRTUSlave(slaveMemory, dummyStreamConnectedToSlave, 4);
+
+            slaveMemory.OutputRegisters[29].ShouldBe((ushort)0);
+
+            master.SendWriteSingleRegisterRequest(29, 542);
+
+            dummyStreamConnectedToSlave.Seek(0, SeekOrigin.Begin);
+
+            slave.HandleWriteSingleRegisterRequest(out var offset);
+
+            offset.ShouldBe(29);
+
+            dummyStreamConnectedToSlave.Seek(0, SeekOrigin.Begin);
+
+            slave.HandleWriteSingleRegisterResponse(offset);
+
+            dummyStreamConnectedToSlave.Seek(0, SeekOrigin.Begin);
+
+            master.ReceiveWriteSingleRegisterResponse(offset);
+
+            //slave memory is updated
+            slaveMemory.OutputRegisters[29].ShouldBe((ushort)542);
+
+            //master memory is synched
+            masterMemory.OutputRegisters[29].ShouldBe((ushort)542);
+        }
+
     }
 }

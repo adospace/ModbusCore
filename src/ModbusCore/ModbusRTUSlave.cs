@@ -110,6 +110,80 @@ namespace ModbusCore
         internal void HandleReadInputRegistersResponse(int zeroBasedOffset, int count)
             => HandleRegisterArrayResponse(zeroBasedOffset, count, ModbusFunctionCode.ReadInputRegisters);
 
+        internal void HandleWriteSingleCoilRequest(out int zeroBasedOffset)
+        {
+            using var messageBufferReader = _messageBuffer.BeginRead(Stream);
+
+            if (messageBufferReader.PushFromStream() != Address)
+                throw new InvalidOperationException();
+
+            if (messageBufferReader.PushFromStream() != (byte)ModbusFunctionCode.WriteSingleCoil)
+                throw new InvalidOperationException();
+
+            zeroBasedOffset = (ushort)((messageBufferReader.PushFromStream() << 8) + (messageBufferReader.PushFromStream() << 0));
+
+            var value = messageBufferReader.PushFromStream() == 0xFF;
+
+            if (messageBufferReader.PushFromStream() != 0x00)
+                throw new InvalidOperationException();
+
+            CheckCrcIsValidFromRequest(messageBufferReader);
+
+            MemoryMap.OutputCoils[zeroBasedOffset] = value;
+        }
+
+        internal void HandleWriteSingleCoilResponse(int zeroBasedOffset)
+        {
+            //write the response
+            using var messageBufferWriter = _messageBuffer.BeginWrite();
+            messageBufferWriter.Push((byte)((Address >> 0) & 0xFF));
+            messageBufferWriter.Push((byte)ModbusFunctionCode.WriteSingleCoil);
+
+            messageBufferWriter.Push((byte)((zeroBasedOffset >> 8) & 0xFF));
+            messageBufferWriter.Push((byte)((zeroBasedOffset >> 0) & 0xFF));
+            messageBufferWriter.Push((byte)(MemoryMap.OutputCoils[zeroBasedOffset] ? 0xFF : 0x00));
+            messageBufferWriter.Push(0);
+
+            AppendCrcToResponse(messageBufferWriter);
+
+            _messageBuffer.WriteToStream(Stream);
+        }
+
+        internal void HandleWriteSingleRegisterRequest(out int zeroBasedOffset)
+        {
+            using var messageBufferReader = _messageBuffer.BeginRead(Stream);
+
+            if (messageBufferReader.PushFromStream() != Address)
+                throw new InvalidOperationException();
+
+            if (messageBufferReader.PushFromStream() != (byte)ModbusFunctionCode.WriteSingleRegister)
+                throw new InvalidOperationException();
+
+            zeroBasedOffset = (ushort)((messageBufferReader.PushFromStream() << 8) + (messageBufferReader.PushFromStream() << 0));
+            var value = (ushort)((messageBufferReader.PushFromStream() << 8) + (messageBufferReader.PushFromStream() << 0));
+
+            CheckCrcIsValidFromRequest(messageBufferReader);
+
+            MemoryMap.OutputRegisters[zeroBasedOffset] = value;
+        }
+
+        internal void HandleWriteSingleRegisterResponse(int zeroBasedOffset)
+        {
+            //write the response
+            using var messageBufferWriter = _messageBuffer.BeginWrite();
+            messageBufferWriter.Push((byte)((Address >> 0) & 0xFF));
+            messageBufferWriter.Push((byte)ModbusFunctionCode.WriteSingleRegister);
+
+            messageBufferWriter.Push((byte)((zeroBasedOffset >> 8) & 0xFF));
+            messageBufferWriter.Push((byte)((zeroBasedOffset >> 0) & 0xFF));
+            messageBufferWriter.Push((byte)((MemoryMap.OutputRegisters[zeroBasedOffset] >> 8) & 0xFF));
+            messageBufferWriter.Push((byte)((MemoryMap.OutputRegisters[zeroBasedOffset] >> 0) & 0xFF));
+
+            AppendCrcToResponse(messageBufferWriter);
+
+            _messageBuffer.WriteToStream(Stream);
+        }
+
         private void AppendCrcToResponse(IMessageBufferWriter messageBufferWriter)
         {
             var crc = CrcUtils.CRC16(_messageBuffer);
