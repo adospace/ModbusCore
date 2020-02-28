@@ -9,7 +9,7 @@
     <Copyright>Adolfo Marinucci</Copyright>
     <PackageProjectUrl>https://github.com/adospace/ModbusCore</PackageProjectUrl>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
-    <RepositoryUrl>https://github.com/adospace/CoreSync</RepositoryUrl>
+    <RepositoryUrl>https://github.com/adospace/ModbusCore</RepositoryUrl>
     <PackageTags>modbus .net core </PackageTags>
     <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
     <PackageRequireLicenseAcceptance>true</PackageRequireLicenseAcceptance>

@@ -234,7 +234,7 @@ namespace ModbusCore
             if (messageBufferReader.PushFromStream() != (byte)ModbusFunctionCode.WriteMultipleCoils)
                 throw new InvalidOperationException();
 
-            HandleWriteMultipleCoilsRequest(out zeroBasedOffset, out countOfValues);
+            HandleWriteMultipleCoilsRequest(messageBufferReader, out zeroBasedOffset, out countOfValues);
         }
 
         private void HandleWriteMultipleCoilsRequest(IMessageBufferReader messageBufferReader, out int zeroBasedOffset, out int countOfValues)
