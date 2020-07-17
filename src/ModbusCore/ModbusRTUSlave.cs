@@ -3,7 +3,7 @@ using System.IO;
 
 namespace ModbusCore
 {
-    public class ModbusRTUSlave : ModbusDevice, IModbusSlave
+    public class ModbusRTUSlave : ModbusRTUDevice, IModbusSlave
     {
         private readonly MessageBuffer _messageBuffer = new MessageBuffer();
 

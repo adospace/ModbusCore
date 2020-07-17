@@ -82,6 +82,16 @@ namespace ModbusCore
                     byteCountToReadFromStreamAndPushToBuffer -= readBytes;
                 }
             }
+            
+            public async Task PushFromStreamAsync(int byteCountToReadFromStreamAndPushToBuffer)
+            {
+                while (byteCountToReadFromStreamAndPushToBuffer > 0)
+                {
+                    var readBytes = await _stream.ReadAsync(_owner._buffer, Length, byteCountToReadFromStreamAndPushToBuffer);
+                    _owner.Length += (ushort)readBytes;
+                    byteCountToReadFromStreamAndPushToBuffer -= readBytes;
+                }
+            }
         }
 
         private MessageBufferWriter? _writer = null;
