@@ -269,7 +269,7 @@ namespace ModbusCore.Tests
 
             dummyStreamConnectedToSlave.Seek(0, SeekOrigin.Begin);
 
-            master.ReceiveWriteMultipleCoilsResponse(offset, out countOfValues);
+            master.ReceiveWriteMultipleCoilsResponse(offset);//, out countOfValues);
 
             countOfValues.ShouldBe(3);
 
@@ -315,7 +315,7 @@ namespace ModbusCore.Tests
 
             dummyStreamConnectedToSlave.Seek(0, SeekOrigin.Begin);
 
-            master.ReceiveWriteMultipleRegistersResponse(offset, out countOfValues);
+            master.ReceiveWriteMultipleRegistersResponse(offset);//, out countOfValues);
 
             countOfValues.ShouldBe(4);
 

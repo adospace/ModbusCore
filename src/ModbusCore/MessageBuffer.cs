@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace ModbusCore
@@ -66,10 +67,9 @@ namespace ModbusCore
                 _owner.Close();
             }
 
-            public byte PushFromStream()
+            public byte PushByteFromStream()
             {
-                _owner._buffer[_owner.Length] = _stream.ReadByteEx();
-                _owner.Length++;
+                PushFromStream(1);
                 return _owner._buffer[_owner.Length - 1];
             }
 
@@ -78,6 +78,22 @@ namespace ModbusCore
                 while (byteCountToReadFromStreamAndPushToBuffer > 0)
                 {
                     var readBytes = _stream.Read(_owner._buffer, Length, byteCountToReadFromStreamAndPushToBuffer);
+                    _owner.Length += (ushort)readBytes;
+                    byteCountToReadFromStreamAndPushToBuffer -= readBytes;
+                }
+            }
+
+            public async Task<byte> PushByteFromStreamAsync(CancellationToken cancellationToken)
+            {
+                await PushFromStreamAsync(1, cancellationToken);
+                return _owner._buffer[_owner.Length - 1];
+            }
+
+            public async Task PushFromStreamAsync(int byteCountToReadFromStreamAndPushToBuffer, CancellationToken cancellationToken)
+            {
+                while (byteCountToReadFromStreamAndPushToBuffer > 0)
+                {
+                    var readBytes = await _stream.ReadAsync(_owner._buffer, Length, byteCountToReadFromStreamAndPushToBuffer, cancellationToken);
                     _owner.Length += (ushort)readBytes;
                     byteCountToReadFromStreamAndPushToBuffer -= readBytes;
                 }
@@ -120,14 +136,14 @@ namespace ModbusCore
             stream.Write(_buffer, 0, Length);
         }
 
-        internal Task WriteToStreamAsync(Stream stream)
+        internal Task WriteToStreamAsync(Stream stream, CancellationToken cancellationToken)
         {
             if (stream is null)
             {
                 throw new ArgumentNullException(nameof(stream));
             }
 
-            return stream.WriteAsync(_buffer, 0, Length);
+            return stream.WriteAsync(_buffer, 0, Length, cancellationToken);
         }
     }
 }
