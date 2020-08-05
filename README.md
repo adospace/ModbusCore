@@ -1,7 +1,7 @@
 # ModbusCore
 .NET Standard Modbus protocol implementation according to latests specs from http://www.modbus.org/
 
-[![Build status](https://ci.appveyor.com/api/projects/status/819jpo1fpateb2ya?svg=true)](https://ci.appveyor.com/project/adospace/modbuscore)
+[![Build status](https://ci.appveyor.com/api/projects/status/819jpo1fpateb2ya?svg=true)](https://ci.appveyor.com/project/adospace/modbuscore) [![Nuget](https://img.shields.io/nuget/v/modbuscore)](https://www.nuget.org/packages/modbuscore) 
 
 Modbus protocol specifications:
 1. Application Level (OSI Level 7) http://www.modbus.org/docs/Modbus_Application_Protocol_V1_1b3.pdf
