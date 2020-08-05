@@ -1,5 +1,5 @@
 # ModbusCore
-Fully asynchronous .NET Standard Modbus protocol implementation according to latests specs from http://www.modbus.org/
+.NET Standard Modbus protocol implementation according to latests specs from http://www.modbus.org/
 
 [![Build status](https://ci.appveyor.com/api/projects/status/819jpo1fpateb2ya?svg=true)](https://ci.appveyor.com/project/adospace/modbuscore)
 
