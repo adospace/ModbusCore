@@ -109,11 +109,25 @@ namespace ModbusCore
             ReceiveWriteSingleCoilResponse(zeroBasedOffset);
         }
 
+        public async Task WriteSingleCoilAsync(int zeroBasedOffset, bool value, CancellationToken cancellationToken)
+        {
+            await SendWriteSingleCoilRequestAsync(zeroBasedOffset, value, cancellationToken);
+
+            await ReceiveWriteSingleCoilResponseAsync(zeroBasedOffset, cancellationToken);
+        }
+
         public void WriteSingleRegister(int zeroBasedOffset, int value)
         {
             SendWriteSingleRegisterRequest(zeroBasedOffset, value);
 
             ReceiveWriteSingleRegisterResponse(zeroBasedOffset);
+        }
+
+        public async Task WriteSingleRegisterAsync(int zeroBasedOffset, int value, CancellationToken cancellationToken)
+        {
+            await SendWriteSingleRegisterRequestAsync(zeroBasedOffset, value, cancellationToken);
+
+            await ReceiveWriteSingleRegisterResponseAsync(zeroBasedOffset, cancellationToken);
         }
 
         public void WriteMultipleCoils(int zeroBasedOffset, bool[] values)
@@ -128,6 +142,18 @@ namespace ModbusCore
             //    throw new InvalidOperationException();
         }
 
+        public async Task WriteMultipleCoilsAsync(int zeroBasedOffset, bool[] values, CancellationToken cancellationToken)
+        {
+            Validate.Between(nameof(values) + ".Length", values.Length, 0, 0x07B0);
+
+            await SendWriteMultipleCoilsRequestAsync(zeroBasedOffset, values, cancellationToken);
+
+            await ReceiveWriteMultipleCoilsResponseAsync(zeroBasedOffset, cancellationToken);//, out var countOfValuesReturned);
+
+            //if (countOfValuesReturned != values.Length)
+            //    throw new InvalidOperationException();
+        }
+
         public void WriteMultipleRegisters(int zeroBasedOffset, int[] values)
         {
             Validate.Between(nameof(values) + ".Length", values.Length, 0, 0x07B0);
@@ -135,6 +161,18 @@ namespace ModbusCore
             SendWriteMultipleRegistersRequest(zeroBasedOffset, values);
 
             ReceiveWriteMultipleRegistersResponse(zeroBasedOffset);//, out var countOfValuesReturned);
+
+            //if (countOfValuesReturned != values.Length)
+            //    throw new InvalidOperationException();
+        }
+
+        public async Task WriteMultipleRegistersAsync(int zeroBasedOffset, int[] values, CancellationToken cancellationToken)
+        {
+            Validate.Between(nameof(values) + ".Length", values.Length, 0, 0x07B0);
+
+            await SendWriteMultipleRegistersRequestAsync(zeroBasedOffset, values, cancellationToken);
+
+            await ReceiveWriteMultipleRegistersResponseAsync(zeroBasedOffset, cancellationToken);//, out var countOfValuesReturned);
 
             //if (countOfValuesReturned != values.Length)
             //    throw new InvalidOperationException();
@@ -196,7 +234,7 @@ namespace ModbusCore
         internal async Task ReceiveWriteSingleCoilResponseAsync(int zeroBasedOffset, CancellationToken cancellationToken)
         {
             using var messageBufferReader = _messageBuffer.BeginRead(Stream);
-            if (messageBufferReader.PushByteFromStream() != Address)
+            if (await messageBufferReader.PushByteFromStreamAsync(cancellationToken) != Address)
                 throw new InvalidOperationException();
 
             byte functionCode = await messageBufferReader.PushByteFromStreamAsync(cancellationToken);
@@ -247,6 +285,32 @@ namespace ModbusCore
             CheckCrcIsValidFromResponse(messageBufferReader);
         }
 
+        internal async Task ReceiveWriteMultipleCoilsResponseAsync(int zeroBasedOffset, CancellationToken cancellationToken)//, out int count)
+        {
+            using var messageBufferReader = _messageBuffer.BeginRead(Stream);
+            if (await messageBufferReader.PushByteFromStreamAsync(cancellationToken) != Address)
+                throw new InvalidOperationException();
+
+            byte functionCode = await messageBufferReader.PushByteFromStreamAsync(cancellationToken);
+
+            if (functionCode == ((byte)ModbusFunctionCode.WriteMultipleCoils | 0x80))
+            {
+                var exceptionCode = (ModbusExceptionCode)await messageBufferReader.PushByteFromStreamAsync(cancellationToken);
+                throw new ModbusException(exceptionCode);
+            }
+
+            if (functionCode != (byte)ModbusFunctionCode.WriteMultipleCoils)
+                throw new InvalidOperationException();
+
+            if ((ushort)((await messageBufferReader.PushByteFromStreamAsync(cancellationToken) << 8) + 
+                (await messageBufferReader.PushByteFromStreamAsync(cancellationToken) << 0)) != zeroBasedOffset)
+                throw new InvalidOperationException();
+
+            var count = (ushort)((messageBufferReader.PushByteFromStream() << 8) + (messageBufferReader.PushByteFromStream() << 0));
+
+            CheckCrcIsValidFromResponse(messageBufferReader);
+        }
+
         internal void ReceiveWriteSingleRegisterResponse(int zeroBasedOffset)
         {
             using var messageBufferReader = _messageBuffer.BeginRead(Stream);
@@ -291,10 +355,12 @@ namespace ModbusCore
             if (functionCode != (byte)ModbusFunctionCode.WriteSingleRegister)
                 throw new InvalidOperationException();
 
-            if ((ushort)((await messageBufferReader.PushByteFromStreamAsync(cancellationToken) << 8) + (await messageBufferReader.PushByteFromStreamAsync(cancellationToken) << 0)) != zeroBasedOffset)
+            if ((ushort)((await messageBufferReader.PushByteFromStreamAsync(cancellationToken) << 8) + 
+                (await messageBufferReader.PushByteFromStreamAsync(cancellationToken) << 0)) != zeroBasedOffset)
                 throw new InvalidOperationException();
 
-            var value = (ushort)((await messageBufferReader.PushByteFromStreamAsync(cancellationToken) << 8) + (await messageBufferReader.PushByteFromStreamAsync(cancellationToken) << 0));
+            var value = (ushort)((await messageBufferReader.PushByteFromStreamAsync(cancellationToken) << 8) + 
+                (await messageBufferReader.PushByteFromStreamAsync(cancellationToken) << 0));
 
             CheckCrcIsValidFromResponse(messageBufferReader);
 
@@ -322,6 +388,33 @@ namespace ModbusCore
                 throw new InvalidOperationException();
 
             var count = (ushort)((messageBufferReader.PushByteFromStream() << 8) + (messageBufferReader.PushByteFromStream() << 0));
+
+            CheckCrcIsValidFromResponse(messageBufferReader);
+        }
+
+        internal async Task ReceiveWriteMultipleRegistersResponseAsync(int zeroBasedOffset, CancellationToken cancellationToken)//, out int count)
+        {
+            using var messageBufferReader = _messageBuffer.BeginRead(Stream);
+            if (await messageBufferReader.PushByteFromStreamAsync(cancellationToken) != Address)
+                throw new InvalidOperationException();
+
+            byte functionCode = await messageBufferReader.PushByteFromStreamAsync(cancellationToken);
+
+            if (functionCode == ((byte)ModbusFunctionCode.WriteMultipleRegisters | 0x80))
+            {
+                var exceptionCode = (ModbusExceptionCode)await messageBufferReader.PushByteFromStreamAsync(cancellationToken);
+                throw new ModbusException(exceptionCode);
+            }
+
+            if (functionCode != (byte)ModbusFunctionCode.WriteMultipleRegisters)
+                throw new InvalidOperationException();
+
+            if ((ushort)((await messageBufferReader.PushByteFromStreamAsync(cancellationToken) << 8) + 
+                (await messageBufferReader.PushByteFromStreamAsync(cancellationToken) << 0)) != zeroBasedOffset)
+                throw new InvalidOperationException();
+
+            var count = (ushort)((await messageBufferReader.PushByteFromStreamAsync(cancellationToken) << 8) + 
+                (await messageBufferReader.PushByteFromStreamAsync(cancellationToken) << 0));
 
             CheckCrcIsValidFromResponse(messageBufferReader);
         }
