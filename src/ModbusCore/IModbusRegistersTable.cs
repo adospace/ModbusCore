@@ -6,5 +6,6 @@
 
         int Length { get; }
 
+        public string ToString(int index, int count);
     }
 }

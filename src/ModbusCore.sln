@@ -3,9 +3,11 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 16
 VisualStudioVersion = 16.0.29613.14
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ModbusCore", "ModbusCore\ModbusCore.csproj", "{1B92C099-A584-40DD-8B9D-C7A543B0F5A8}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "ModbusCore", "ModbusCore\ModbusCore.csproj", "{1B92C099-A584-40DD-8B9D-C7A543B0F5A8}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ModbusCore.Tests", "ModbusCore.Tests\ModbusCore.Tests.csproj", "{83A02A4A-7BDC-4CED-BBCE-6BEF012F77BB}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "ModbusCore.Tests", "ModbusCore.Tests\ModbusCore.Tests.csproj", "{83A02A4A-7BDC-4CED-BBCE-6BEF012F77BB}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ModbusCore.TestApp", "ModbusCore.TestApp\ModbusCore.TestApp.csproj", "{3056A188-AC74-4BB6-A8C8-FB187A4341FB}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -21,6 +23,10 @@ Global
 		{83A02A4A-7BDC-4CED-BBCE-6BEF012F77BB}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{83A02A4A-7BDC-4CED-BBCE-6BEF012F77BB}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{83A02A4A-7BDC-4CED-BBCE-6BEF012F77BB}.Release|Any CPU.Build.0 = Release|Any CPU
+		{3056A188-AC74-4BB6-A8C8-FB187A4341FB}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{3056A188-AC74-4BB6-A8C8-FB187A4341FB}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{3056A188-AC74-4BB6-A8C8-FB187A4341FB}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{3056A188-AC74-4BB6-A8C8-FB187A4341FB}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

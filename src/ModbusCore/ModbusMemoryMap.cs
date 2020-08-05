@@ -6,8 +6,10 @@ namespace ModbusCore
     {
         public ModbusMemoryMap()
         {
-            InputCoils = OutputCoils = new ModbusCoilsTable();
-            InputRegisters = OutputRegisters = new ModbusRegistersTable();
+            InputCoils = new ModbusCoilsTable();
+            OutputCoils = new ModbusCoilsTable();
+            InputRegisters = new ModbusRegistersTable();
+            OutputRegisters = new ModbusRegistersTable();
         }
 
         public ModbusMemoryMap(IModbusCoilsTable inputCoils, IModbusCoilsTable outputCoils, IModbusRegistersTable inputRegisters, IModbusRegistersTable outputRegisters)

@@ -11,6 +11,7 @@ namespace ModbusCore
         }
 
         public ModbusException(ModbusExceptionCode exceptionCode)
+            :base($"Error code returned {exceptionCode}")
         {
             this.ExceptionCode = exceptionCode;
         }
