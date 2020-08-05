@@ -553,7 +553,7 @@ namespace ModbusCore
                     break;
 
                 case ModbusFunctionCode.ReadInputRegisters:
-                    MemoryMap.OutputRegisters.CopyFrom(
+                    MemoryMap.InputRegisters.CopyFrom(
                         new MessageBufferSpan(_messageBuffer, (ushort)(_messageBuffer.Length - byteCount - 2), byteCount), zeroBasedOffset, count);
                     break;
             }
