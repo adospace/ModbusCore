@@ -46,6 +46,11 @@ namespace ModbusCore
             {
                 _owner.Close();
             }
+
+            public void Log(IPacketLogger packetLogger)
+            {
+                packetLogger.SendingPacket(new ReadOnlySpan<byte>(_owner._buffer, 0, _owner.Length));
+            }
         }
 
         public class MessageBufferReader : IMessageBufferReader
@@ -97,6 +102,11 @@ namespace ModbusCore
                     _owner.Length += (ushort)readBytes;
                     byteCountToReadFromStreamAndPushToBuffer -= readBytes;
                 }
+            }
+
+            public void Log(IPacketLogger packetLogger)
+            {
+                packetLogger.ReceivedPacket(new ReadOnlySpan<byte>(_owner._buffer, 0, _owner.Length));
             }
         }
 

@@ -7,5 +7,7 @@ namespace ModbusCore
         void Push(byte value);
 
         int Length { get; }
+
+        void Log(IPacketLogger packetLogger);
     }
 }

@@ -7,10 +7,8 @@ namespace ModbusCore
 {
     public class ModbusRTUMaster : ModbusRTUDevice, IModbusMaster
     {
-        private readonly MessageBuffer _messageBuffer = new MessageBuffer();
-
-        public ModbusRTUMaster(ModbusMemoryMap memoryMap, Stream stream, byte address)
-            : base(memoryMap, stream, address)
+        public ModbusRTUMaster(ModbusMemoryMap memoryMap, Stream stream, byte address, IPacketLogger? packetLogger = null)
+            : base(memoryMap, stream, address, packetLogger)
         {
         }
 
@@ -226,7 +224,7 @@ namespace ModbusCore
 
             messageBufferReader.PushByteFromStream();
 
-            CheckCrcIsValidFromResponse(messageBufferReader);
+            CheckCrcIsValid(messageBufferReader);
 
             MemoryMap.OutputCoils[zeroBasedOffset] = value;
         }
@@ -255,7 +253,7 @@ namespace ModbusCore
 
             await messageBufferReader.PushByteFromStreamAsync(cancellationToken);
 
-            CheckCrcIsValidFromResponse(messageBufferReader);
+            CheckCrcIsValid(messageBufferReader);
 
             MemoryMap.OutputCoils[zeroBasedOffset] = value;
         }
@@ -282,7 +280,7 @@ namespace ModbusCore
 
             var count =  (ushort)((messageBufferReader.PushByteFromStream() << 8) + (messageBufferReader.PushByteFromStream() << 0));
 
-            CheckCrcIsValidFromResponse(messageBufferReader);
+            CheckCrcIsValid(messageBufferReader);
         }
 
         internal async Task ReceiveWriteMultipleCoilsResponseAsync(int zeroBasedOffset, CancellationToken cancellationToken)//, out int count)
@@ -308,7 +306,7 @@ namespace ModbusCore
 
             var count = (ushort)((messageBufferReader.PushByteFromStream() << 8) + (messageBufferReader.PushByteFromStream() << 0));
 
-            CheckCrcIsValidFromResponse(messageBufferReader);
+            CheckCrcIsValid(messageBufferReader);
         }
 
         internal void ReceiveWriteSingleRegisterResponse(int zeroBasedOffset)
@@ -333,7 +331,7 @@ namespace ModbusCore
 
             var value = (ushort)((messageBufferReader.PushByteFromStream() << 8) + (messageBufferReader.PushByteFromStream() << 0));
 
-            CheckCrcIsValidFromResponse(messageBufferReader);
+            CheckCrcIsValid(messageBufferReader);
 
             MemoryMap.OutputRegisters[zeroBasedOffset] = value;
         }
@@ -362,7 +360,7 @@ namespace ModbusCore
             var value = (ushort)((await messageBufferReader.PushByteFromStreamAsync(cancellationToken) << 8) + 
                 (await messageBufferReader.PushByteFromStreamAsync(cancellationToken) << 0));
 
-            CheckCrcIsValidFromResponse(messageBufferReader);
+            CheckCrcIsValid(messageBufferReader);
 
             MemoryMap.OutputRegisters[zeroBasedOffset] = value;
         }
@@ -389,7 +387,7 @@ namespace ModbusCore
 
             var count = (ushort)((messageBufferReader.PushByteFromStream() << 8) + (messageBufferReader.PushByteFromStream() << 0));
 
-            CheckCrcIsValidFromResponse(messageBufferReader);
+            CheckCrcIsValid(messageBufferReader);
         }
 
         internal async Task ReceiveWriteMultipleRegistersResponseAsync(int zeroBasedOffset, CancellationToken cancellationToken)//, out int count)
@@ -416,7 +414,7 @@ namespace ModbusCore
             var count = (ushort)((await messageBufferReader.PushByteFromStreamAsync(cancellationToken) << 8) + 
                 (await messageBufferReader.PushByteFromStreamAsync(cancellationToken) << 0));
 
-            CheckCrcIsValidFromResponse(messageBufferReader);
+            CheckCrcIsValid(messageBufferReader);
         }
 
         internal void SendReadCoilsRequest(int zeroBasedOffset, int count)
@@ -453,7 +451,7 @@ namespace ModbusCore
             messageBufferWriter.Push((byte)(value ? 0xFF : 0x00));
             messageBufferWriter.Push(0);
 
-            AppendCrcToRequest(messageBufferWriter);
+            AppendCrc(messageBufferWriter);
 
             _messageBuffer.WriteToStream(Stream);
         }
@@ -468,7 +466,7 @@ namespace ModbusCore
             messageBufferWriter.Push((byte)(value ? 0xFF : 0x00));
             messageBufferWriter.Push(0);
 
-            AppendCrcToRequest(messageBufferWriter);
+            AppendCrc(messageBufferWriter);
 
             await _messageBuffer.WriteToStreamAsync(Stream, cancellationToken);
         }
@@ -483,7 +481,7 @@ namespace ModbusCore
             messageBufferWriter.Push((byte)((value >> 8) & 0xFF));
             messageBufferWriter.Push((byte)((value >> 0) & 0xFF));
 
-            AppendCrcToRequest(messageBufferWriter);
+            AppendCrc(messageBufferWriter);
 
             _messageBuffer.WriteToStream(Stream);
         }
@@ -498,7 +496,7 @@ namespace ModbusCore
             messageBufferWriter.Push((byte)((value >> 8) & 0xFF));
             messageBufferWriter.Push((byte)((value >> 0) & 0xFF));
 
-            AppendCrcToRequest(messageBufferWriter);
+            AppendCrc(messageBufferWriter);
 
             await _messageBuffer.WriteToStreamAsync(Stream, cancellationToken);
         }
@@ -517,7 +515,7 @@ namespace ModbusCore
 
             values.CopyTo(messageBufferWriter);
 
-            AppendCrcToRequest(messageBufferWriter);
+            AppendCrc(messageBufferWriter);
 
             _messageBuffer.WriteToStream(Stream);
         }
@@ -536,7 +534,7 @@ namespace ModbusCore
 
             values.CopyTo(messageBufferWriter);
 
-            AppendCrcToRequest(messageBufferWriter);
+            AppendCrc(messageBufferWriter);
 
             await _messageBuffer.WriteToStreamAsync(Stream, cancellationToken);
         }
@@ -555,7 +553,7 @@ namespace ModbusCore
 
             values.CopyTo(messageBufferWriter);
 
-            AppendCrcToRequest(messageBufferWriter);
+            AppendCrc(messageBufferWriter);
 
             _messageBuffer.WriteToStream(Stream);
         }
@@ -574,34 +572,9 @@ namespace ModbusCore
 
             values.CopyTo(messageBufferWriter);
 
-            AppendCrcToRequest(messageBufferWriter);
+            AppendCrc(messageBufferWriter);
 
             await _messageBuffer.WriteToStreamAsync(Stream, cancellationToken);
-        }
-
-        private void AppendCrcToRequest(IMessageBufferWriter messageBufferWriter)
-        {
-            var crc = CrcUtils.CRC16(_messageBuffer);
-
-            // Write the high nibble of the CRC
-            messageBufferWriter.Push((byte)(((crc & 0xFF00) >> 8) & 0xFF));
-
-            // Write the low nibble of the CRC
-            messageBufferWriter.Push((byte)((crc & 0x00FF) & 0xFF));
-        }
-
-        private void CheckCrcIsValidFromResponse(IMessageBufferReader messageBufferReader)
-        {
-            var messageCrc = CrcUtils.CRC16(_messageBuffer);
-
-            //check CRC
-            messageBufferReader.PushFromStream(2);
-
-            if (_messageBuffer[_messageBuffer.Length - 2] != (byte)(((messageCrc & 0xFF00) >> 8) & 0xFF) ||
-                _messageBuffer[_messageBuffer.Length - 1] != (byte)((messageCrc & 0x00FF) & 0xFF))
-            {
-                throw new ModbusInvalidCRCException();
-            }
         }
 
         private void ReceiveReadResponse(int zeroBasedOffset, int count, ModbusFunctionCode expectedFunctionCode)
@@ -625,7 +598,7 @@ namespace ModbusCore
 
             messageBufferReader.PushFromStream(byteCount);
 
-            CheckCrcIsValidFromResponse(messageBufferReader);
+            CheckCrcIsValid(messageBufferReader);
 
             //update the memory map
             switch (expectedFunctionCode)
@@ -673,7 +646,7 @@ namespace ModbusCore
 
             await messageBufferReader.PushFromStreamAsync(byteCount, cancellationToken);
 
-            CheckCrcIsValidFromResponse(messageBufferReader);
+            CheckCrcIsValid(messageBufferReader);
 
             //update the memory map
             switch (expectedFunctionCode)
@@ -710,7 +683,7 @@ namespace ModbusCore
             messageBufferWriter.Push((byte)((count >> 8) & 0xFF));
             messageBufferWriter.Push((byte)((count >> 0) & 0xFF));
 
-            AppendCrcToRequest(messageBufferWriter);
+            AppendCrc(messageBufferWriter);
 
             _messageBuffer.WriteToStream(Stream);
         }
@@ -725,8 +698,8 @@ namespace ModbusCore
             messageBufferWriter.Push((byte)((count >> 8) & 0xFF));
             messageBufferWriter.Push((byte)((count >> 0) & 0xFF));
 
-            AppendCrcToRequest(messageBufferWriter);
-
+            AppendCrc(messageBufferWriter);
+            
             await _messageBuffer.WriteToStreamAsync(Stream, cancellationToken);
         }
     }

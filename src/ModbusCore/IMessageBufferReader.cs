@@ -16,5 +16,7 @@ namespace ModbusCore
         Task PushFromStreamAsync(int byteCountToReadFromStreamAndPushToBuffer, CancellationToken cancellationToken);
 
         int Length { get; }
+
+        void Log(IPacketLogger packetLogger);
     }
 }
