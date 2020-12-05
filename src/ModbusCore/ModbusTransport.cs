@@ -898,6 +898,8 @@ namespace ModbusCore
         {
             using var messageBufferWriter = _messageBuffer.BeginWrite();
 
+            OnBeginSendingMessage(messageBufferWriter);
+
             PushWriteSingleCoilRequest(messageBufferWriter, Address, zeroBasedOffset, value);
 
             OnEndSendingMessage(messageBufferWriter);
@@ -911,6 +913,8 @@ namespace ModbusCore
         internal Task SendWriteSingleRegisterRequestAsync(int zeroBasedOffset, int value, CancellationToken cancellationToken, bool sync = false)
         {
             using var messageBufferWriter = _messageBuffer.BeginWrite();
+
+            OnBeginSendingMessage(messageBufferWriter);
 
             PushWriteSingleRegisterRequest(messageBufferWriter, Address, zeroBasedOffset, value);
 
@@ -926,6 +930,8 @@ namespace ModbusCore
         {
             using var messageBufferWriter = _messageBuffer.BeginWrite();
 
+            OnBeginSendingMessage(messageBufferWriter);
+
             PushWriteMultipleCoilsRequest(messageBufferWriter, Address, zeroBasedOffset, values);
 
             OnEndSendingMessage(messageBufferWriter);
@@ -940,6 +946,8 @@ namespace ModbusCore
         {
             using var messageBufferWriter = _messageBuffer.BeginWrite();
 
+            OnBeginSendingMessage(messageBufferWriter);
+
             PushWriteMultipleRegistersRequest(messageBufferWriter, Address, zeroBasedOffset, values);
 
             OnEndSendingMessage(messageBufferWriter);
@@ -953,6 +961,8 @@ namespace ModbusCore
         private async Task SendReadRequestAsync(int zeroBasedOffset, int count, ModbusFunctionCode functionCode, CancellationToken cancellationToken, bool sync = false)
         {
             using var messageBufferWriter = _messageBuffer.BeginWrite();
+
+            OnBeginSendingMessage(messageBufferWriter);
 
             PushReadRequest(messageBufferWriter, Address, zeroBasedOffset, count, functionCode);
 
