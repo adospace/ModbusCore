@@ -87,5 +87,28 @@
             }
             return (ushort)(uchCRCHi << 8 | uchCRCLo);
         }
+
+
+        //public static void CheckCrcIsValid(MessageBuffer messageBuffer)
+        //{
+        //    var messageCrc = CRC16(messageBuffer);
+
+        //    if (messageBuffer[messageBuffer.Length - 2] != (byte)(((messageCrc & 0xFF00) >> 8) & 0xFF) ||
+        //        messageBuffer[messageBuffer.Length - 1] != (byte)((messageCrc & 0x00FF) & 0xFF))
+        //    {
+        //        throw new ModbusInvalidCRCException($"Invalid CRC: expected {(byte)(((messageCrc & 0xFF00) >> 8) & 0xFF):X2} {(byte)(messageCrc & 0x00FF & 0xFF):X2} received {messageBuffer[messageBuffer.Length - 2]:X2} {messageBuffer[messageBuffer.Length - 1]:X2}");
+        //    }
+        //}
+
+        //public static void AppendCrc(IMessageBufferWriter messageBufferWriter, MessageBuffer messageBuffer)
+        //{
+        //    var crc = CRC16(messageBuffer);
+
+        //    // Write the high nibble of the CRC
+        //    messageBufferWriter.Push((byte)(((crc & 0xFF00) >> 8) & 0xFF));
+
+        //    // Write the low nibble of the CRC
+        //    messageBufferWriter.Push((byte)((crc & 0x00FF) & 0xFF));
+        //}
     }
 }

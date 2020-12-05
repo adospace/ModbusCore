@@ -4,7 +4,7 @@ namespace ModbusCore
 {
     public static class ModbusMasterExtensions
     {
-        public static void ReadCoilsSpan(this IModbusMaster master, int zeroBasedStartOffset, int zeroBasedEndOffset)
+        public static void ReadCoilsSpan(this ModbusTransport master, int zeroBasedStartOffset, int zeroBasedEndOffset)
         {
             if (master is null)
             {

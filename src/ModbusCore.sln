@@ -7,7 +7,7 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "ModbusCore", "ModbusCore\Mo
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "ModbusCore.Tests", "ModbusCore.Tests\ModbusCore.Tests.csproj", "{83A02A4A-7BDC-4CED-BBCE-6BEF012F77BB}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ModbusCore.TestApp", "ModbusCore.TestApp\ModbusCore.TestApp.csproj", "{3056A188-AC74-4BB6-A8C8-FB187A4341FB}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "ModbusCore.TestApp", "ModbusCore.TestApp\ModbusCore.TestApp.csproj", "{3056A188-AC74-4BB6-A8C8-FB187A4341FB}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

@@ -146,11 +146,17 @@ namespace ModbusCore
             stream.Write(_buffer, 0, Length);
         }
 
-        internal Task WriteToStreamAsync(Stream stream, CancellationToken cancellationToken)
+        internal Task WriteToStreamAsync(Stream stream, CancellationToken cancellationToken, bool sync = false)
         {
             if (stream is null)
             {
                 throw new ArgumentNullException(nameof(stream));
+            }
+
+            if (sync)
+            {
+                WriteToStream(stream);
+                return Task.CompletedTask;
             }
 
             return stream.WriteAsync(_buffer, 0, Length, cancellationToken);

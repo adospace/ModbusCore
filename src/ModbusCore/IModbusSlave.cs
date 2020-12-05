@@ -4,8 +4,8 @@ using System.Text;
 
 namespace ModbusCore
 {
-    public interface IModbusSlave
-    {
-        void HandleAnyRequest();
-    }
+    //public interface IModbusSlave
+    //{
+    //    void HandleAnyRequest();
+    //}
 }
