@@ -6,9 +6,9 @@ using System.Threading.Tasks;
 
 namespace ModbusCore
 {
-    public abstract class ModbusClient
+    public partial class ModbusClient
     {
-        protected ModbusClient(
+        public ModbusClient(
             ModbusTransport modbusTransport,
             IPacketLogger? packetLogger = null)
         {
@@ -16,18 +16,9 @@ namespace ModbusCore
             PacketLogger = packetLogger;
         }
 
-        public ModbusTransport ModbusTransport { get; }
+        internal ModbusTransport ModbusTransport { get; }
         public IPacketLogger? PacketLogger { get; }
-
-        public async Task PollAsync(ModbusDevice[] devices, CancellationToken cancellationToken)
-        { 
-            
-        
-        }
-
-        public void Poll(params ModbusDevice[] devices)
-        {
-
-        }
+        protected virtual int GetTransactionIdentifier() => 0;
     }
+
 }

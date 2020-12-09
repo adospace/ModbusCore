@@ -102,34 +102,34 @@ namespace ModbusCore.TestApp
             var masterMemory = new ModbusMemoryMap();
             var master = new ModbusRTUTransport(masterMemory, connectedStream, options.SlaveId);
             
-            while (!Console.KeyAvailable)
-            {
-                if (options.InputCount > 0)
-                {
-                    await master.ReadDiscreteInputsAsync(options.InputAddress, options.InputCount, CancellationToken.None);
-                    diWindow.PrintAt(0, 0, masterMemory.InputCoils.ToString(options.InputAddress, options.InputCount));
-                }
+            //while (!Console.KeyAvailable)
+            //{
+            //    if (options.InputCount > 0)
+            //    {
+            //        await master.ReadDiscreteInputsAsync(options.InputAddress, options.InputCount, CancellationToken.None);
+            //        diWindow.PrintAt(0, 0, masterMemory.InputCoils.ToString(options.InputAddress, options.InputCount));
+            //    }
 
-                if (options.CoilsCount > 0)
-                {
-                    await master.ReadCoilsAsync(options.CoilsAddress, options.CoilsCount, CancellationToken.None);
-                    doWindow.PrintAt(0, 0, masterMemory.OutputCoils.ToString(options.CoilsAddress, options.CoilsCount));
-                }
+            //    if (options.CoilsCount > 0)
+            //    {
+            //        await master.ReadCoilsAsync(options.CoilsAddress, options.CoilsCount, CancellationToken.None);
+            //        doWindow.PrintAt(0, 0, masterMemory.OutputCoils.ToString(options.CoilsAddress, options.CoilsCount));
+            //    }
 
-                if (options.RegisterCount > 0)
-                {
-                    await master.ReadInputRegistersAsync(options.RegisterAddress, options.RegisterCount, CancellationToken.None);
-                    inputRegistersWindow.PrintAt(0, 0, masterMemory.InputRegisters.ToString(options.RegisterAddress, options.RegisterCount));
-                }
+            //    if (options.RegisterCount > 0)
+            //    {
+            //        await master.ReadInputRegistersAsync(options.RegisterAddress, options.RegisterCount, CancellationToken.None);
+            //        inputRegistersWindow.PrintAt(0, 0, masterMemory.InputRegisters.ToString(options.RegisterAddress, options.RegisterCount));
+            //    }
 
-                if (options.HoldingRegisterCount > 0)
-                {
-                    await master.ReadHoldingRegistersAsync(options.HoldingRegisterAddress, options.HoldingRegisterCount, CancellationToken.None);
-                    holdingRegistersWindow.PrintAt(0, 0, masterMemory.OutputRegisters.ToString(options.HoldingRegisterAddress, options.HoldingRegisterCount));
-                }
+            //    if (options.HoldingRegisterCount > 0)
+            //    {
+            //        await master.ReadHoldingRegistersAsync(options.HoldingRegisterAddress, options.HoldingRegisterCount, CancellationToken.None);
+            //        holdingRegistersWindow.PrintAt(0, 0, masterMemory.OutputRegisters.ToString(options.HoldingRegisterAddress, options.HoldingRegisterCount));
+            //    }
 
-                await Task.Delay(options.ScanRate);
-            }
+            //    await Task.Delay(options.ScanRate);
+            //}
         }
     }
 }

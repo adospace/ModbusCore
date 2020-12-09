@@ -42,4 +42,6 @@ namespace ModbusCore.Tests
 
         Read
     }
+
+
 }

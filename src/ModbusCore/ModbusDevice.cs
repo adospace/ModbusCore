@@ -5,7 +5,7 @@ namespace ModbusCore
 {
     public class ModbusDevice
     {
-        protected ModbusDevice(ModbusMemoryMap memoryMap, byte address)
+        public ModbusDevice(ModbusMemoryMap memoryMap, byte address)
         {
             MemoryMap = memoryMap ?? throw new ArgumentNullException(nameof(memoryMap));
             Address = address;

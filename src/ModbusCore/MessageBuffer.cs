@@ -10,14 +10,26 @@ namespace ModbusCore
     public class MessageBuffer
     {
         public const int MAX_MESSAGE_LENGTH = 256;
-        private readonly byte[] _buffer = new byte[MAX_MESSAGE_LENGTH];
+        private readonly byte[] _buffer;
+        private readonly int _offset;
 
         public ushort Length { get; private set; }
 
+        public MessageBuffer()
+        {
+            _buffer = new byte[MAX_MESSAGE_LENGTH];
+        }
+
+        public MessageBuffer(MessageBuffer ownerBuffer, int offset)
+        {
+            _offset = offset;
+            _buffer = ownerBuffer._buffer;
+        }
+
         public byte this[int index]
         {
-            get => _buffer[index];
-            private set => _buffer[index] = value;
+            get => _buffer[_offset + index];
+            private set => _buffer[_offset + index] = value;
         }
 
         public void Clear() => Length = 0;
@@ -29,6 +41,8 @@ namespace ModbusCore
             private readonly MessageBuffer _owner;
 
             public int Length => _owner.Length;
+
+            public MessageBuffer Buffer => _owner;
 
             public MessageBufferWriter(MessageBuffer owner)
             {
@@ -59,6 +73,8 @@ namespace ModbusCore
             private readonly Stream _stream;
 
             public int Length => _owner.Length;
+
+            public MessageBuffer Buffer => _owner;
 
             public MessageBufferReader(MessageBuffer owner, Stream stream)
             {
@@ -144,6 +160,16 @@ namespace ModbusCore
             }
 
             stream.Write(_buffer, 0, Length);
+        }
+
+        internal void WriteToStream(Stream stream, int offset, int length)
+        {
+            if (stream is null)
+            {
+                throw new ArgumentNullException(nameof(stream));
+            }
+
+            stream.Write(_buffer, offset, length);
         }
 
         internal Task WriteToStreamAsync(Stream stream, CancellationToken cancellationToken, bool sync = false)

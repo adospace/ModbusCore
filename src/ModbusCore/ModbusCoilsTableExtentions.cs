@@ -15,11 +15,12 @@ namespace ModbusCore
             for (var i = 0; i < n; i++)
             {
                 byte currentByte = 0;
-                for (var j = 0; j < 8; j++)
+                for (var j = 0; j < 8 && count > 0; j++)
                 {
                     var index = i * 8 + j + offset;
                     if (index < table.Length && table[index])
                         currentByte |= (byte)(0x1 << j);
+                    count--;
                 }
 
                 bufferWriter.Push(currentByte);
@@ -57,12 +58,13 @@ namespace ModbusCore
             for (var i = 0; i < n; i++)
             {
                 byte currentByte = messageBufferSpan[i];
-                for (var j = 0; j < 8; j++)
+                for (var j = 0; j < 8 && count > 0; j++)
                 {
                     var index = i * 8 + j + offset;
                     if (index < table.Length)
                         table[index] =
                         ((currentByte & (byte)(0x1 << j)) > 0);
+                    count--;
                 }
             }
         }
