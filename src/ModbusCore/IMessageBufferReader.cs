@@ -27,5 +27,8 @@ namespace ModbusCore
     {
         public static int PushShortFromStream(this IMessageBufferReader reader)
             => (int)((reader.PushByteFromStream() << 8) + (reader.PushByteFromStream() << 0));
+        
+        public static async Task<int> PushShortFromStreamAsync(this IMessageBufferReader reader, CancellationToken cancellationToken)
+            => (int)((await reader.PushByteFromStreamAsync(cancellationToken) << 8) + (await reader.PushByteFromStreamAsync(cancellationToken) << 0));
     }
 }

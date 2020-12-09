@@ -153,14 +153,7 @@ namespace ModbusCore
         }
 
         internal void WriteToStream(Stream stream)
-        {
-            if (stream is null)
-            {
-                throw new ArgumentNullException(nameof(stream));
-            }
-
-            stream.Write(_buffer, 0, Length);
-        }
+            => WriteToStream(stream, 0, Length);
 
         internal void WriteToStream(Stream stream, int offset, int length)
         {
@@ -172,20 +165,17 @@ namespace ModbusCore
             stream.Write(_buffer, offset, length);
         }
 
-        internal Task WriteToStreamAsync(Stream stream, CancellationToken cancellationToken, bool sync = false)
+        internal Task WriteToStreamAsync(Stream stream, CancellationToken cancellationToken)
+            => WriteToStreamAsync(stream, 0, Length, cancellationToken);
+
+        internal Task WriteToStreamAsync(Stream stream, int offset, int length, CancellationToken cancellationToken)
         {
             if (stream is null)
             {
                 throw new ArgumentNullException(nameof(stream));
             }
 
-            if (sync)
-            {
-                WriteToStream(stream);
-                return Task.CompletedTask;
-            }
-
-            return stream.WriteAsync(_buffer, 0, Length, cancellationToken);
+            return stream.WriteAsync(_buffer, offset, length, cancellationToken);
         }
     }
 }

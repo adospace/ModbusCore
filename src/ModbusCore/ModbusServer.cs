@@ -28,6 +28,7 @@ namespace ModbusCore
 
             public abstract void WriteResponse(ModbusDevice device, IMessageBufferWriter writer);
             protected abstract void Initialize(IMessageBufferReader reader);
+            protected abstract Task InitializeAsync(IMessageBufferReader reader, CancellationToken cancellationToken);
         }
 
         public abstract class ReadHandler : MessageHandler
@@ -41,12 +42,15 @@ namespace ModbusCore
 
             protected override void Initialize(IMessageBufferReader reader)
             {
-                Offset = (ushort)((reader.PushByteFromStream() << 8) +
-                    (reader.PushByteFromStream() << 0));
-                Count = (ushort)((reader.PushByteFromStream() << 8) +
-                    (reader.PushByteFromStream() << 0));
+                Offset = reader.PushShortFromStream();
+                Count = reader.PushShortFromStream();
             }
 
+            protected override async Task InitializeAsync(IMessageBufferReader reader, CancellationToken cancellationToken)
+            {
+                Offset = await reader.PushShortFromStreamAsync(cancellationToken);
+                Count = await reader.PushShortFromStreamAsync(cancellationToken);
+            }
         }
 
         public class ReadCoilsHandler : ReadHandler
@@ -67,6 +71,13 @@ namespace ModbusCore
             {
                 var handler = new ReadCoilsHandler();
                 handler.Initialize(reader);
+                return handler;
+            }
+
+            public static async Task<ReadCoilsHandler> CreateAsync(IMessageBufferReader reader, CancellationToken cancellationToken)
+            {
+                var handler = new ReadCoilsHandler();
+                await handler.InitializeAsync(reader, cancellationToken);
                 return handler;
             }
         }
@@ -91,6 +102,13 @@ namespace ModbusCore
                 handler.Initialize(reader);
                 return handler;
             }
+
+            public static async Task<ReadDiscreteInputsHandler> CreateAsync(IMessageBufferReader reader, CancellationToken cancellationToken)
+            {
+                var handler = new ReadDiscreteInputsHandler();
+                await handler.InitializeAsync(reader, cancellationToken);
+                return handler;
+            }
         }
 
         public class ReadInputRegistersHandler : ReadHandler
@@ -111,6 +129,13 @@ namespace ModbusCore
             {
                 var handler = new ReadInputRegistersHandler();
                 handler.Initialize(reader);
+                return handler;
+            }
+
+            public static async Task<ReadInputRegistersHandler> CreateAsync(IMessageBufferReader reader, CancellationToken cancellationToken)
+            {
+                var handler = new ReadInputRegistersHandler();
+                await handler.InitializeAsync(reader, cancellationToken);
                 return handler;
             }
         }
@@ -136,6 +161,12 @@ namespace ModbusCore
                 return handler;
             }
 
+            public static async Task<ReadHoldingRegistersHandler> CreateAsync(IMessageBufferReader reader, CancellationToken cancellationToken)
+            {
+                var handler = new ReadHoldingRegistersHandler();
+                await handler.InitializeAsync(reader, cancellationToken);
+                return handler;
+            }
         }
 
         public abstract class WriteHandler : MessageHandler
@@ -150,8 +181,12 @@ namespace ModbusCore
                     (reader.PushByteFromStream() << 0));
             }
 
+            protected override async Task InitializeAsync(IMessageBufferReader reader, CancellationToken cancellationToken)
+            {
+                Offset = await reader.PushShortFromStreamAsync(cancellationToken);
+            }
 
-            public ushort Offset { get; private set; }
+            public int Offset { get; private set; }
 
             public abstract void UpdateMemory(ModbusDevice device);
         }
@@ -174,6 +209,16 @@ namespace ModbusCore
                     throw new InvalidOperationException();
             }
 
+            protected override async Task InitializeAsync(IMessageBufferReader reader, CancellationToken cancellationToken)
+            {
+                await base.InitializeAsync(reader, cancellationToken);
+
+                Value = await reader.PushByteFromStreamAsync(cancellationToken) == 0xFF;
+
+                if (await reader.PushByteFromStreamAsync(cancellationToken) != 0x00)
+                    throw new InvalidOperationException();
+            }
+
             public static WriteSingleCoilHandler Create(IMessageBufferReader reader)
             {
                 var handler = new WriteSingleCoilHandler();
@@ -181,6 +226,12 @@ namespace ModbusCore
                 return handler;
             }
 
+            public static async Task<WriteSingleCoilHandler> CreateAsync(IMessageBufferReader reader, CancellationToken cancellationToken)
+            {
+                var handler = new WriteSingleCoilHandler();
+                await handler.InitializeAsync(reader, cancellationToken);
+                return handler;
+            }
 
             public override void UpdateMemory(ModbusDevice device)
             {
@@ -209,14 +260,27 @@ namespace ModbusCore
             {
                 base.Initialize(reader);
 
-                Value = (ushort)((reader.PushByteFromStream() << 8) +
-                    (reader.PushByteFromStream() << 0));
+                Value = reader.PushShortFromStream();
+            }
+
+            protected override  async Task InitializeAsync(IMessageBufferReader reader, CancellationToken cancellationToken)
+            {
+                await base.InitializeAsync(reader, cancellationToken);
+
+                Value = await reader.PushShortFromStreamAsync(cancellationToken);
             }
 
             public static WriteSingleRegisterHandler Create(IMessageBufferReader reader)
             {
                 var handler = new WriteSingleRegisterHandler();
                 handler.Initialize(reader);
+                return handler;
+            }
+
+            public static async Task<WriteSingleRegisterHandler> CreateAsync(IMessageBufferReader reader, CancellationToken cancellationToken)
+            {
+                var handler = new WriteSingleRegisterHandler();
+                await handler.InitializeAsync(reader, cancellationToken);
                 return handler;
             }
 
@@ -250,11 +314,25 @@ namespace ModbusCore
             {
                 base.Initialize(reader);
 
-                Count = (ushort)((reader.PushByteFromStream() << 8) + (reader.PushByteFromStream() << 0));
+                Count = reader.PushShortFromStream();
 
                 var byteCount = reader.PushByteFromStream();
 
                 reader.PushFromStream(byteCount);
+
+                MessageBuffer = new MessageBufferSpan(reader.Buffer, (ushort)(reader.Buffer.Length - byteCount - 2), byteCount);
+
+            }
+
+            protected override async Task InitializeAsync(IMessageBufferReader reader, CancellationToken cancellationToken)
+            {
+                await base.InitializeAsync(reader, cancellationToken);
+
+                Count = await reader.PushShortFromStreamAsync(cancellationToken);
+
+                var byteCount = await reader.PushByteFromStreamAsync(cancellationToken);
+
+                await reader.PushFromStreamAsync(byteCount, cancellationToken);
 
                 MessageBuffer = new MessageBufferSpan(reader.Buffer, (ushort)(reader.Buffer.Length - byteCount - 2), byteCount);
 
@@ -291,6 +369,13 @@ namespace ModbusCore
                 return handler;
             }
 
+            public static async Task<WriteMultipleCoilsHandler> CreateAsync(IMessageBufferReader reader, CancellationToken cancellationToken)
+            {
+                var handler = new WriteMultipleCoilsHandler();
+                await handler.InitializeAsync(reader, cancellationToken);
+                return handler;
+            }
+
             public override void UpdateMemory(ModbusDevice device)
             {
                 if (MessageBuffer == null)
@@ -314,6 +399,13 @@ namespace ModbusCore
             {
                 var handler = new WriteMultipleRegistersHandler();
                 handler.Initialize(reader);
+                return handler;
+            }
+
+            public static async Task<WriteMultipleRegistersHandler> CreateAsync(IMessageBufferReader reader, CancellationToken cancellationToken)
+            {
+                var handler = new WriteMultipleRegistersHandler();
+                await handler.InitializeAsync(reader, cancellationToken);
                 return handler;
             }
 
@@ -341,6 +433,13 @@ namespace ModbusCore
                 return handler;
             }
 
+            public static async Task<ReadWriteMultipleRegistersHandler> CreateAsync(IMessageBufferReader reader, CancellationToken cancellationToken)
+            {
+                var handler = new ReadWriteMultipleRegistersHandler();
+                await handler.InitializeAsync(reader, cancellationToken);
+                return handler;
+            }
+
             protected override void Initialize(IMessageBufferReader reader)
             {
                 base.Initialize(reader);
@@ -355,7 +454,22 @@ namespace ModbusCore
                 reader.PushFromStream(byteCount);
 
                 MessageBuffer = new MessageBufferSpan(reader.Buffer, (ushort)(reader.Buffer.Length - byteCount - 2), byteCount);
+            }
 
+            protected override async Task InitializeAsync(IMessageBufferReader reader, CancellationToken cancellationToken)
+            {
+                await base.InitializeAsync(reader, cancellationToken);
+
+                ReadCount = await reader.PushShortFromStreamAsync(cancellationToken);
+
+                WriteOffset = await reader.PushShortFromStreamAsync(cancellationToken);
+                WriteCount = await reader.PushShortFromStreamAsync(cancellationToken);
+
+                var byteCount = await reader.PushByteFromStreamAsync(cancellationToken);
+
+                await reader.PushFromStreamAsync(byteCount, cancellationToken);
+
+                MessageBuffer = new MessageBufferSpan(reader.Buffer, (ushort)(reader.Buffer.Length - byteCount - 2), byteCount);
             }
 
             public int ReadOffset { get; private set; }
@@ -386,7 +500,7 @@ namespace ModbusCore
             }
         }
 
-        public void HandleAnyRequest(params ModbusDevice[] devices)
+        public void HandleRequest(params ModbusDevice[] devices)
         {
             if (devices is null)
             {
@@ -401,7 +515,7 @@ namespace ModbusCore
             MessageHandler? messageHandler = null;
             ModbusDevice? device = null;
 
-            var requestMessage = ModbusTransport.ReceiveMessage<ModbusMessage>(reader =>
+            var requestContext = ModbusTransport.ReceiveMessage(reader =>
             {
                 var deviceAddress = reader.PushByteFromStream();
 
@@ -428,7 +542,6 @@ namespace ModbusCore
                     ModbusFunctionCode.ReadWriteMultipleRegisters => ReadWriteMultipleRegistersHandler.Create(reader),
                     _ => throw new NotSupportedException($"Function {functionCode} not supported"),
                 };
-                return new ModbusMessage();
             });
 
             if (messageHandler is WriteHandler writeHandler)
@@ -436,10 +549,65 @@ namespace ModbusCore
                 writeHandler.UpdateMemory(device!);
             }
 
-            ModbusTransport.SendMessage(requestMessage, writer => 
+            ModbusTransport.SendMessage(requestContext, writer => 
             {
                 messageHandler!.WriteResponse(device!, writer);            
             });
+        }
+
+        public async Task HandleRequestAsync(ModbusDevice[] devices, CancellationToken cancellationToken)
+        {
+            if (devices is null)
+            {
+                throw new ArgumentNullException(nameof(devices));
+            }
+
+            if (devices.Length == 0)
+            {
+                throw new ArgumentException();
+            }
+
+            MessageHandler? messageHandler = null;
+            ModbusDevice? device = null;
+
+            var requestContext = await ModbusTransport.ReceiveMessageAsync(async reader =>
+            {
+                var deviceAddress = await reader.PushByteFromStreamAsync(cancellationToken);
+
+                device = devices.FirstOrDefault(_ => _.Address == deviceAddress);
+
+                if (device == null)
+                {
+                    throw new InvalidOperationException($"Received request for device with unknown address {deviceAddress}");
+                }
+
+                var functionCode = (ModbusFunctionCode)await reader.PushByteFromStreamAsync(cancellationToken);
+                messageHandler = functionCode switch
+                {
+                    ModbusFunctionCode.ReadDiscreteInputs => await ReadDiscreteInputsHandler.CreateAsync(reader, cancellationToken),
+                    ModbusFunctionCode.ReadCoils => await ReadCoilsHandler.CreateAsync(reader, cancellationToken),
+                    ModbusFunctionCode.ReadInputRegisters => await ReadInputRegistersHandler.CreateAsync(reader, cancellationToken),
+                    ModbusFunctionCode.ReadHoldingRegisters => await ReadHoldingRegistersHandler.CreateAsync(reader, cancellationToken),
+
+                    ModbusFunctionCode.WriteSingleCoil => await WriteSingleCoilHandler.CreateAsync(reader, cancellationToken),
+                    ModbusFunctionCode.WriteSingleRegister => await WriteSingleRegisterHandler.CreateAsync(reader, cancellationToken),
+                    ModbusFunctionCode.WriteMultipleCoils => await WriteMultipleCoilsHandler.CreateAsync(reader, cancellationToken),
+                    ModbusFunctionCode.WriteMultipleRegisters => await WriteMultipleRegistersHandler.CreateAsync(reader, cancellationToken),
+
+                    ModbusFunctionCode.ReadWriteMultipleRegisters => await ReadWriteMultipleRegistersHandler.CreateAsync(reader, cancellationToken),
+                    _ => throw new NotSupportedException($"Function {functionCode} not supported"),
+                };
+            }, cancellationToken);
+
+            if (messageHandler is WriteHandler writeHandler)
+            {
+                writeHandler.UpdateMemory(device!);
+            }
+
+            await ModbusTransport.SendMessageAsync(requestContext, writer =>
+            {
+                messageHandler!.WriteResponse(device!, writer);
+            }, cancellationToken);
         }
     }
 }

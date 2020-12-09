@@ -100,7 +100,7 @@ namespace ModbusCore.TestApp
         private static async Task ConnecionLoop(NetworkStream connectedStream, Options options, IConsole diWindow, IConsole doWindow, IConsole inputRegistersWindow, IConsole holdingRegistersWindow)
         {
             var masterMemory = new ModbusMemoryMap();
-            var master = new ModbusRTUTransport(masterMemory, connectedStream, options.SlaveId);
+            //var master = new ModbusRTUTransport(masterMemory, connectedStream, options.SlaveId);
             
             //while (!Console.KeyAvailable)
             //{

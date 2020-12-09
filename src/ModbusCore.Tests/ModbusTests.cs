@@ -62,7 +62,7 @@ namespace ModbusCore.Tests
             clientMemory.OutputCoils[10].ShouldBeFalse();
             clientMemory.OutputCoils[15].ShouldBeFalse();
 
-            Task.Run(() => server.HandleAnyRequest(serverDevice));
+            Task.Run(() => server.HandleRequest(serverDevice));
 
             client.ReadCoils(clientDevice, 10, 13);
 
@@ -92,7 +92,7 @@ namespace ModbusCore.Tests
             clientMemory.InputCoils[10].ShouldBeFalse();
             clientMemory.InputCoils[15].ShouldBeFalse();
 
-            Task.Run(() => server.HandleAnyRequest(serverDevice));
+            Task.Run(() => server.HandleRequest(serverDevice));
 
             //read only one input
             client.ReadDiscreteInputs(clientDevice, 10, 1);
@@ -105,7 +105,7 @@ namespace ModbusCore.Tests
             clientMemory.InputCoils[10].ShouldBeTrue();
             clientMemory.InputCoils[15].ShouldBeFalse();
 
-            Task.Run(() => server.HandleAnyRequest(serverDevice));
+            Task.Run(() => server.HandleRequest(serverDevice));
 
             //read another input
             client.ReadDiscreteInputs(clientDevice, 15, 1);
@@ -114,46 +114,6 @@ namespace ModbusCore.Tests
             clientMemory.InputCoils[10].ShouldBeTrue();
             clientMemory.InputCoils[15].ShouldBeTrue();
         }
-
-        //[TestMethod]
-        //public void MasterShouldReadDiscreteInputsFromSlave()
-        //{
-        //    var dummyStreamConnectedToSlave = new MockedMemoryStream();
-
-        //    var masterMemory = new ModbusMemoryMap();
-        //    var master = new ModbusRTUTransport(masterMemory, dummyStreamConnectedToSlave, 4);
-
-        //    var slaveMemory = new ModbusMemoryMap();
-        //    var slave = new ModbusRTUTransport(slaveMemory, dummyStreamConnectedToSlave, 4);
-
-        //    slaveMemory.InputCoils[12] = true;
-        //    slaveMemory.InputCoils[13] = true;
-
-        //    master.SendReadDiscreteInputsRequest(10, 13); //10...22 (Coil 11 to 23)
-
-
-
-        //    slave.HandleReadDiscreteInputsRequest(out var offset, out var count);
-
-        //    offset.ShouldBe(10);
-        //    count.ShouldBe(13);
-
-
-
-        //    slave.HandleReadDiscreteInputsResponse(offset, count);
-
-
-
-        //    master.ReceiveReadDiscreteInputsResponse(offset, count);
-
-        //    //slave memory not touched
-        //    slaveMemory.InputCoils[12].ShouldBeTrue();
-        //    slaveMemory.InputCoils[13].ShouldBeTrue();
-
-        //    //master memory is synched
-        //    masterMemory.InputCoils[12].ShouldBeTrue();
-        //    masterMemory.InputCoils[13].ShouldBeTrue();
-        //}
 
         //[TestMethod]
         //public void MasterShouldReadHoldingRegistersFromSlave()

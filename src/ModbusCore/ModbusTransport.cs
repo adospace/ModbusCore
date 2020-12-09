@@ -24,48 +24,91 @@ namespace ModbusCore
         
         protected virtual IMessageBufferWriter CreateBufferWriter() => _messageBuffer.BeginWrite();
 
-        protected virtual void OnBeginReceivingMessage(IMessageBufferReader messageBufferReader)
+        protected virtual void OnBeginReceivingMessage(IMessageBufferReader messageBufferReader, ModbusTransportContext context)
         {
 
         }
 
-        protected virtual void OnEndReceivingMessage(IMessageBufferReader messageBufferReader, ModbusMessage message)
+        protected virtual void OnEndReceivingMessage(IMessageBufferReader messageBufferReader, ModbusTransportContext context)
         {
 
         }
 
-        protected virtual void OnBeginSendingMessage(IMessageBufferWriter messageBufferWriter, ModbusMessage message)
+        protected virtual Task OnBeginReceivingMessageAsync(IMessageBufferReader messageBufferReader, ModbusTransportContext context, CancellationToken cancellationToken)
+        {
+            return Task.CompletedTask;
+        }
+
+        protected virtual Task OnEndReceivingMessageAsync(IMessageBufferReader messageBufferReader, ModbusTransportContext context, CancellationToken cancellationToken)
+        {
+            return Task.CompletedTask;
+        }
+
+        protected virtual void OnBeginSendingMessage(IMessageBufferWriter messageBufferWriter, ModbusTransportContext context)
         {
 
         }
 
-        protected virtual void OnEndSendingMessage(IMessageBufferWriter messageBufferWriter, ModbusMessage message)
+        protected virtual void OnEndSendingMessage(IMessageBufferWriter messageBufferWriter, ModbusTransportContext context)
         {
 
         }
 
-        public T ReceiveMessage<T>(Func<IMessageBufferReader, ModbusMessage> buildMessageFunc) where T : ModbusMessage
+        protected virtual Task OnEndSendingMessageAsync(IMessageBufferWriter messageBufferWriter, ModbusTransportContext context, CancellationToken cancellationToken)
+        {
+            return Task.CompletedTask;
+        }
+
+        public ModbusTransportContext ReceiveMessage(Action<IMessageBufferReader> buildMessageFunc)
         {
             using var reader = CreateBufferReader();
 
-            OnBeginReceivingMessage(reader);
+            var context = new ModbusTransportContext();
 
-            var message = buildMessageFunc(reader);
+            OnBeginReceivingMessage(reader, context);
 
-            OnEndReceivingMessage(reader, message);
+            buildMessageFunc(reader);
 
-            return (T)message;
+            OnEndReceivingMessage(reader, context);
+
+            return context;
         }
 
-        public void SendMessage(ModbusMessage message, Action<IMessageBufferWriter> buildMessageAction)
+        public async Task<ModbusTransportContext> ReceiveMessageAsync(Func<IMessageBufferReader, Task> buildMessageFunc, CancellationToken cancellationToken)
+        {
+            using var reader = CreateBufferReader();
+
+            var context = new ModbusTransportContext();
+
+            await OnBeginReceivingMessageAsync(reader, context, cancellationToken);
+
+            await buildMessageFunc(reader);
+
+            await OnEndReceivingMessageAsync(reader, context, cancellationToken);
+
+            return context;
+        }
+
+        public void SendMessage(ModbusTransportContext context, Action<IMessageBufferWriter> buildMessageAction)
         {
             using var writer = CreateBufferWriter();
 
-            OnBeginSendingMessage(writer, message);
+            OnBeginSendingMessage(writer, context);
 
             buildMessageAction(writer);
 
-            OnEndSendingMessage(writer, message);
+            OnEndSendingMessage(writer, context);
+        }
+
+        public async Task SendMessageAsync(ModbusTransportContext context, Action<IMessageBufferWriter> buildMessageAction, CancellationToken cancellationToken)
+        {
+            using var writer = CreateBufferWriter();
+
+            OnBeginSendingMessage(writer, context);
+
+            buildMessageAction(writer);
+
+            await OnEndSendingMessageAsync(writer, context, cancellationToken);
         }
     }
 
@@ -75,20 +118,41 @@ namespace ModbusCore
         {
         }
 
-        protected override void OnEndReceivingMessage(IMessageBufferReader messageBufferReader, ModbusMessage message)
+        protected override void OnEndReceivingMessage(IMessageBufferReader messageBufferReader, ModbusTransportContext context)
         {
-            CheckCrcIsValid(messageBufferReader);
+            var messageCrc = CrcUtils.CRC16(messageBufferReader.Buffer);
 
-            base.OnEndReceivingMessage(messageBufferReader, message);
+            messageBufferReader.PushFromStream(2);
+
+            CheckCrcIsValid(messageBufferReader, messageCrc);
+
+            base.OnEndReceivingMessage(messageBufferReader, context);
         }
 
-        protected override void OnEndSendingMessage(IMessageBufferWriter messageBufferWriter, ModbusMessage message)
+        protected override async Task OnEndReceivingMessageAsync(IMessageBufferReader messageBufferReader, ModbusTransportContext context, CancellationToken cancellationToken)
+        {
+            var messageCrc = CrcUtils.CRC16(messageBufferReader.Buffer);
+
+            //check CRC
+            await messageBufferReader.PushFromStreamAsync(2, cancellationToken);
+
+            CheckCrcIsValid(messageBufferReader, messageCrc);
+        }
+
+        protected override void OnEndSendingMessage(IMessageBufferWriter messageBufferWriter, ModbusTransportContext context)
         {
             AppendCrc(messageBufferWriter);
 
             _messageBuffer.WriteToStream(Stream);
 
-            base.OnEndSendingMessage(messageBufferWriter, message);
+            base.OnEndSendingMessage(messageBufferWriter, context);
+        }
+
+        protected override async Task OnEndSendingMessageAsync(IMessageBufferWriter messageBufferWriter, ModbusTransportContext context, CancellationToken cancellationToken)
+        {
+            AppendCrc(messageBufferWriter);
+
+            await _messageBuffer.WriteToStreamAsync(Stream, cancellationToken);
         }
 
         protected void AppendCrc(IMessageBufferWriter messageBufferWriter)
@@ -107,20 +171,17 @@ namespace ModbusCore
             }
         }
 
-        protected void CheckCrcIsValid(IMessageBufferReader messageBufferReader)
+        protected void CheckCrcIsValid(IMessageBufferReader messageBufferReader, ushort messageCrc)
         {
-            var messageCrc = CrcUtils.CRC16(messageBufferReader.Buffer);
-
-            //check CRC
-            messageBufferReader.PushFromStream(2);
-
             if (PacketLogger != null)
             {
                 messageBufferReader.Log(PacketLogger);
             }
 
-            byte recvCRC1 = messageBufferReader.Buffer[messageBufferReader.Buffer.Length - 2];
-            byte rectCRC2 = messageBufferReader.Buffer[messageBufferReader.Buffer.Length - 1];
+            var messageBuffer = messageBufferReader.Buffer;
+
+            byte recvCRC1 = messageBuffer[messageBuffer.Length - 2];
+            byte rectCRC2 = messageBuffer[messageBuffer.Length - 1];
 
             if (recvCRC1 != (byte)(((messageCrc & 0xFF00) >> 8) & 0xFF) ||
                 rectCRC2 != (byte)((messageCrc & 0x00FF) & 0xFF))
@@ -132,39 +193,11 @@ namespace ModbusCore
 
     public class ModbusTCPTransport : ModbusTransport
     {
-        public static short PROTOCOL_IDENTIFIER = (short)0x0000;
-        public static short TRANSACTION_IDENTIFIER = (short)0x0000;
+        public static short PROTOCOL_IDENTIFIER = 0x0000;
+        public static short TRANSACTION_IDENTIFIER = 0x0000;
 
         public ModbusTCPTransport(Stream stream, IPacketLogger? packetLogger = null) : base(stream, packetLogger)
         {
-        }
-
-        protected override void OnBeginReceivingMessage(IMessageBufferReader messageBufferReader)
-        {
-            var transactionIndentifier = (ushort)((messageBufferReader.PushByteFromStream() << 8) +
-                (messageBufferReader.PushByteFromStream() << 0));
-
-            var protocolIndentifier = (ushort)((messageBufferReader.PushByteFromStream() << 8) +
-                (messageBufferReader.PushByteFromStream() << 0));
-            if (protocolIndentifier != PROTOCOL_IDENTIFIER)
-            {
-                throw new InvalidOperationException();
-            }
-
-            var messageLenth = (ushort)((messageBufferReader.PushByteFromStream() << 8) +
-                (messageBufferReader.PushByteFromStream() << 0));
-
-            base.OnBeginReceivingMessage(messageBufferReader);
-        }
-
-        protected override void OnEndReceivingMessage(IMessageBufferReader messageBufferReader, ModbusMessage message)
-        {
-            var transactionIndentifier = (ushort)((_messageBuffer[0] << 8) +
-                (_messageBuffer[1] << 0));
-
-            message.TransactionIdentifier = transactionIndentifier;
-
-            base.OnEndReceivingMessage(messageBufferReader, message);
         }
 
         protected override IMessageBufferWriter CreateBufferWriter()
@@ -173,27 +206,76 @@ namespace ModbusCore
             return innerBuffer.BeginWrite();
         }
 
-        protected override void OnEndSendingMessage(IMessageBufferWriter internalWriter, ModbusMessage message)
+        protected override void OnBeginReceivingMessage(IMessageBufferReader reader, ModbusTransportContext context)
+        {
+            var transactionIndentifier = reader.PushShortFromStream();
+
+            var protocolIndentifier = reader.PushShortFromStream();
+
+            if (protocolIndentifier != PROTOCOL_IDENTIFIER)
+            {
+                throw new InvalidOperationException();
+            }
+
+            var messageLenth = reader.PushShortFromStream();
+
+            context.TransactionIdentifier = transactionIndentifier;
+
+            base.OnBeginReceivingMessage(reader, context);
+        }
+
+        protected override async Task OnEndReceivingMessageAsync(IMessageBufferReader reader, ModbusTransportContext context, CancellationToken cancellationToken)
+        {
+            var transactionIndentifier = await reader.PushShortFromStreamAsync(cancellationToken);
+
+            var protocolIndentifier = await reader.PushShortFromStreamAsync(cancellationToken);
+
+            if (protocolIndentifier != PROTOCOL_IDENTIFIER)
+            {
+                throw new InvalidOperationException();
+            }
+
+            var messageLenth = await reader.PushShortFromStreamAsync(cancellationToken);
+
+            context.TransactionIdentifier = transactionIndentifier;
+        }
+
+        protected override void OnEndSendingMessage(IMessageBufferWriter writer, ModbusTransportContext context)
         {
             var externalWriter = _messageBuffer.BeginWrite();
-            externalWriter.Push((byte)((message.TransactionIdentifier >> 8) & 0xFF));
-            externalWriter.Push((byte)((message.TransactionIdentifier >> 0) & 0xFF));
+            externalWriter.Push((byte)((context.TransactionIdentifier >> 8) & 0xFF));
+            externalWriter.Push((byte)((context.TransactionIdentifier >> 0) & 0xFF));
 
             externalWriter.Push((byte)((PROTOCOL_IDENTIFIER >> 8) & 0xFF));
             externalWriter.Push((byte)((PROTOCOL_IDENTIFIER >> 0) & 0xFF));
 
-            externalWriter.Push((byte)((internalWriter.Length >> 8) & 0xFF));
-            externalWriter.Push((byte)((internalWriter.Length >> 0) & 0xFF));
+            externalWriter.Push((byte)((writer.Length >> 8) & 0xFF));
+            externalWriter.Push((byte)((writer.Length >> 0) & 0xFF));
 
-            _messageBuffer.WriteToStream(Stream, 0, externalWriter.Length + internalWriter.Length);
+            _messageBuffer.WriteToStream(Stream, 0, externalWriter.Length + writer.Length);
 
-            base.OnEndSendingMessage(internalWriter, message);
+            base.OnEndSendingMessage(writer, context);
+        }
+
+        protected override async Task OnEndSendingMessageAsync(IMessageBufferWriter writer, ModbusTransportContext context, CancellationToken cancellationToken)
+        {
+            var externalWriter = _messageBuffer.BeginWrite();
+            externalWriter.Push((byte)((context.TransactionIdentifier >> 8) & 0xFF));
+            externalWriter.Push((byte)((context.TransactionIdentifier >> 0) & 0xFF));
+
+            externalWriter.Push((byte)((PROTOCOL_IDENTIFIER >> 8) & 0xFF));
+            externalWriter.Push((byte)((PROTOCOL_IDENTIFIER >> 0) & 0xFF));
+
+            externalWriter.Push((byte)((writer.Length >> 8) & 0xFF));
+            externalWriter.Push((byte)((writer.Length >> 0) & 0xFF));
+
+            await _messageBuffer.WriteToStreamAsync(Stream, 0, externalWriter.Length + writer.Length, cancellationToken);
         }
     }
 
-    public class ModbusMessage
+    public class ModbusTransportContext
     {
-        public ModbusMessage()
+        public ModbusTransportContext()
         {
 
         }
@@ -201,16 +283,16 @@ namespace ModbusCore
         public int TransactionIdentifier { get; set; }
     }
 
-    public class ModbusResponseMessage : ModbusMessage
-    {
-        public ModbusResponseMessage(ModbusMessage requestMessage)
-        {
-            if (TransactionIdentifier != requestMessage.TransactionIdentifier)
-            {
-                throw new InvalidOperationException($"Response transaction identifier {TransactionIdentifier} different from request transaction identifier {requestMessage.TransactionIdentifier}");
-            }
-        }
-    }
+    //public class ModbusResponseMessage : ModbusMessage
+    //{
+    //    public ModbusResponseMessage(ModbusMessage requestMessage)
+    //    {
+    //        if (TransactionIdentifier != requestMessage.TransactionIdentifier)
+    //        {
+    //            throw new InvalidOperationException($"Response transaction identifier {TransactionIdentifier} different from request transaction identifier {requestMessage.TransactionIdentifier}");
+    //        }
+    //    }
+    //}
 
     //public class ReadRequestMessage : ModbusMessage
     //{

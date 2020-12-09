@@ -18,12 +18,12 @@ namespace ModbusCore
 
         private void Read(ModbusDevice device, ModbusFunctionCode functionCode, int zeroBasedOffset, int count, Action<MessageBufferSpan> actionWithReturnedBuffer)
         {
-            var requestMessage = new ModbusMessage()
+            var requestContext = new ModbusTransportContext()
             {
                 TransactionIdentifier = GetTransactionIdentifier()
             };
 
-            ModbusTransport.SendMessage(requestMessage,
+            ModbusTransport.SendMessage(requestContext,
                 (writer) =>
                 {
                     writer.Push(device.Address);
@@ -36,7 +36,7 @@ namespace ModbusCore
 
             MessageBufferSpan? receivedBuffer = null;
 
-            ModbusTransport.ReceiveMessage<ModbusResponseMessage>(
+            var responseContext = ModbusTransport.ReceiveMessage(
                 (reader) =>
                 {
                     if (reader.PushByteFromStream() != device.Address)
@@ -58,9 +58,12 @@ namespace ModbusCore
                     reader.PushFromStream(byteCount);
 
                     receivedBuffer = new MessageBufferSpan(reader.Buffer, (ushort)(reader.Buffer.Length - byteCount), byteCount);
-
-                    return new ModbusResponseMessage(requestMessage);
                 });
+
+            if (responseContext.TransactionIdentifier != requestContext.TransactionIdentifier)
+            {
+                throw new InvalidOperationException();
+            }
 
             actionWithReturnedBuffer(receivedBuffer!);
         }
