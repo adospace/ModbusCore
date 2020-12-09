@@ -52,7 +52,7 @@ namespace ModbusCore
 
             public void Push(byte value)
             {
-                _owner._buffer[_owner.Length] = value;
+                _owner[_owner.Length] = value;
                 _owner.Length++;
             }
 

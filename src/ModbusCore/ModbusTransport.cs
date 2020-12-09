@@ -224,7 +224,7 @@ namespace ModbusCore
             base.OnBeginReceivingMessage(reader, context);
         }
 
-        protected override async Task OnEndReceivingMessageAsync(IMessageBufferReader reader, ModbusTransportContext context, CancellationToken cancellationToken)
+        protected override async Task OnBeginReceivingMessageAsync(IMessageBufferReader reader, ModbusTransportContext context, CancellationToken cancellationToken)
         {
             var transactionIndentifier = await reader.PushShortFromStreamAsync(cancellationToken);
 

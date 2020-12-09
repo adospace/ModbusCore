@@ -23,7 +23,7 @@ namespace ModbusCore
                     return value;
                 });
 
-        public Task<bool> WriteSingleCoil(ModbusDevice device, int zeroBasedOffset, bool value, CancellationToken cancellationToken)
+        public Task<bool> WriteSingleCoilAsync(ModbusDevice device, int zeroBasedOffset, bool value, CancellationToken cancellationToken)
             => WriteAsync(device, ModbusFunctionCode.WriteSingleCoil, zeroBasedOffset,
                 writer =>
                 {
