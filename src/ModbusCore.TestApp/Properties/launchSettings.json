@@ -1,0 +1,8 @@
+{
+  "profiles": {
+    "ModbusCore.TestApp": {
+      "commandName": "Project",
+      "commandLineArgs": "--host 10.61.2.115 --port 4005 --mode TcpRTU --id 1"
+    }
+  }
+}

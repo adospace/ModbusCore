@@ -9,15 +9,15 @@ namespace ModbusCore
     public partial class ModbusClient
     {
         public ModbusClient(
-            ModbusTransport modbusTransport,
-            IPacketLogger? packetLogger = null)
+            ModbusTransport modbusTransport)//,
+            //IPacketLogger? packetLogger = null)
         {
             ModbusTransport = modbusTransport;
-            PacketLogger = packetLogger;
+            //PacketLogger = packetLogger;
         }
 
         internal ModbusTransport ModbusTransport { get; }
-        public IPacketLogger? PacketLogger { get; }
+        //public IPacketLogger? PacketLogger { get; }
         protected virtual int GetTransactionIdentifier() => 0;
     }
 

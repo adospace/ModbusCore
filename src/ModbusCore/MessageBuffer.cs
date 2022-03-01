@@ -61,10 +61,10 @@ namespace ModbusCore
                 _owner.Close();
             }
 
-            public void Log(IPacketLogger packetLogger)
-            {
-                packetLogger.SendingPacket(new ReadOnlySpan<byte>(_owner._buffer, 0, _owner.Length));
-            }
+            //public void Log(IPacketLogger packetLogger)
+            //{
+            //    packetLogger.SendingPacket(new ReadOnlySpan<byte>(_owner._buffer, 0, _owner.Length));
+            //}
         }
 
         public class MessageBufferReader : IMessageBufferReader
@@ -120,10 +120,10 @@ namespace ModbusCore
                 }
             }
 
-            public void Log(IPacketLogger packetLogger)
-            {
-                packetLogger.ReceivedPacket(new ReadOnlySpan<byte>(_owner._buffer, 0, _owner.Length));
-            }
+            //public void Log(IPacketLogger packetLogger)
+            //{
+            //    packetLogger.ReceivedPacket(new ReadOnlySpan<byte>(_owner._buffer, 0, _owner.Length));
+            //}
         }
 
         private MessageBufferWriter? _writer = null;
@@ -177,5 +177,9 @@ namespace ModbusCore
 
             return stream.WriteAsync(_buffer, offset, length, cancellationToken);
         }
+
+        internal ReadOnlySpan<byte> GetBuffer(int len) => new(_buffer, 0, len);
+
+        internal ReadOnlySpan<byte> GetBuffer() => new(_buffer, 0, Length);
     }
 }

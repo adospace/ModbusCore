@@ -1,6 +1,7 @@
 ﻿using CommandLine;
 using Konsole;
 using System;
+using System.Linq;
 using System.Net;
 using System.Net.Sockets;
 using System.Threading;
@@ -10,6 +11,15 @@ namespace ModbusCore.TestApp
 {
     class Program
     {
+        public enum ConnectionMode
+        { 
+            SerialRTU,
+
+            TcpRTU,
+
+            Tcp
+        }
+
         public class Options
         {
             [Option('h', "host", Required = false, HelpText = "TCP slave host.")]
@@ -17,6 +27,9 @@ namespace ModbusCore.TestApp
 
             [Option('p', "port", Required = false, HelpText = "TCP slave port.")]
             public int Port { get; set; } = 502;
+
+            [Option('m', "mode", Required = false, HelpText = "Connection mode (SerialRTU, TcpRTU, Tcp)")]
+            public ConnectionMode Mode { get; set; } = ConnectionMode.Tcp;
 
             [Option("input_count", Required = false, HelpText = "Input count to read.")]
             public int InputCount { get; set; } = 10;
@@ -42,7 +55,7 @@ namespace ModbusCore.TestApp
             [Option("holding_address", Required = false, HelpText = "Holding registers address to start read.")]
             public int HoldingRegisterAddress { get; set; } = 0;
 
-            [Option('s', "slave", Required = false, HelpText = "Slave id.")]
+            [Option("id", Required = false, HelpText = "Slave id.")]
             public byte SlaveId { get; set; } = 1;
 
             [Option("scan_rate", Required = false, HelpText = "Slave scan rate in millisecond.")]
@@ -68,12 +81,13 @@ namespace ModbusCore.TestApp
             var doWindow = Window.OpenBox("Ouput", 80, 3);
             var inputRegistersWindow = Window.OpenBox("Resisters", 80, 3);
             var holdingRegistersWindow = Window.OpenBox("Holding Registers", 80, 3);
+            var traceWindow = Window.OpenBox("Trace", 80, 3);
 
 
             while (!Console.KeyAvailable)
             {
-                //try
-                //{
+                try
+                {
                     using var socketToSlave = new TcpClient
                     {
                         ReceiveTimeout = 5000
@@ -84,23 +98,52 @@ namespace ModbusCore.TestApp
                     connectionWindow.Clear();
                     connectionWindow.PrintAt(0, 0, "Connected");
 
-                    await ConnecionLoop(socketToSlave.GetStream(), options, diWindow, doWindow, inputRegistersWindow, holdingRegistersWindow);
-                //}
-                //catch (Exception ex)
-                //{
-                //    //Console.WriteLine(ex);
-                //    connectionWindow.Clear();
-                //    connectionWindow.PrintAtColor(ConsoleColor.Red, 0, 0, ex.Message, ConsoleColor.Black);
+                    await ConnecionLoop(socketToSlave.GetStream(), options, diWindow, doWindow, inputRegistersWindow, holdingRegistersWindow, traceWindow);
+                }
+                catch (Exception ex)
+                {
+                    System.Diagnostics.Debug.WriteLine(ex);
+                    connectionWindow.Clear();
+                    connectionWindow.PrintAtColor(ConsoleColor.Red, 0, 0, ex.Message, ConsoleColor.Black);
 
-                //    await Task.Delay(options.ScanRate);
-                //}
+                    await Task.Delay(options.ScanRate);
+                }
             }
         }
 
-        private static async Task ConnecionLoop(NetworkStream connectedStream, Options options, IConsole diWindow, IConsole doWindow, IConsole inputRegistersWindow, IConsole holdingRegistersWindow)
+        class ConsoleLogger : IPacketLogger
+        {
+            private IConsole _diWindow;
+
+            public ConsoleLogger(IConsole diWindow)
+            {
+                _diWindow = diWindow;
+            }
+
+            public void ReceivedPacket(ReadOnlySpan<byte> data)
+            {
+                _diWindow.PrintAt(0, 0, "<< " + string.Join(' ', data.ToArray().Select(_ => _.ToString("X"))));
+            }
+
+            public void SendingPacket(ReadOnlySpan<byte> data)
+            {
+                _diWindow.PrintAt(0, 0, ">> " + string.Join(' ', data.ToArray().Select(_ => _.ToString("X"))));
+            }
+        }
+
+        private static async Task ConnecionLoop(NetworkStream connectedStream, Options options, 
+            IConsole diWindow, 
+            IConsole doWindow, 
+            IConsole inputRegistersWindow, 
+            IConsole holdingRegistersWindow,
+            IConsole traceWindow)
         {
             var masterMemory = new ModbusMemoryMap();
-            var client = new ModbusClient(new ModbusTCPTransport(connectedStream));
+            var consoleLogger = new ConsoleLogger(traceWindow);
+            var client = new ModbusClient(
+                options.Mode == ConnectionMode.TcpRTU ?
+                (ModbusTransport)new ModbusRTUTransport(connectedStream, consoleLogger) :
+                new ModbusTCPTransport(connectedStream, consoleLogger));
             var device = new ModbusDevice(masterMemory, options.SlaveId);
 
             while (!Console.KeyAvailable)

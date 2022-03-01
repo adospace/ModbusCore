@@ -1,65 +1,83 @@
-﻿using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Text;
+﻿using System.IO;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace ModbusCore
 {
-    //public class ModbusRTUTransport : ModbusTransport
-    //{
-    //    public ModbusRTUTransport(ModbusMemoryMap memoryMap, Stream stream, byte address, IPacketLogger? packetLogger = null) 
-    //        : base(memoryMap, stream, address, packetLogger)
-    //    {
-    //    }
+    public class ModbusRTUTransport : ModbusTransport
+    {
+        public ModbusRTUTransport(Stream stream, IPacketLogger? packetLogger = null) : base(stream, packetLogger)
+        {
+        }
 
-    //    protected override void OnEndReceivingMessage(IMessageBufferReader messageBufferReader)
-    //    {
-    //        CheckCrcIsValid(messageBufferReader);
+        protected override void OnEndReceivingMessage(IMessageBufferReader messageBufferReader, ModbusTransportContext context)
+        {
+            var messageCrc = CrcUtils.CRC16(messageBufferReader.Buffer);
 
-    //        base.OnEndReceivingMessage(messageBufferReader);
-    //    }
+            messageBufferReader.PushFromStream(2);
 
-    //    protected override void OnEndSendingMessage(IMessageBufferWriter messageBufferWriter)
-    //    {
-    //        AppendCrc(messageBufferWriter);
+            PacketLogger?.ReceivedPacket(_messageBuffer.GetBuffer());
 
-    //        base.OnEndSendingMessage(messageBufferWriter);
-    //    }
+            CheckCrcIsValid(messageBufferReader, messageCrc);
 
-    //    protected void AppendCrc(IMessageBufferWriter messageBufferWriter)
-    //    {
-    //        var crc = CrcUtils.CRC16(_messageBuffer);
+            base.OnEndReceivingMessage(messageBufferReader, context);
+        }
 
-    //        // Write the high nibble of the CRC
-    //        messageBufferWriter.Push((byte)(((crc & 0xFF00) >> 8) & 0xFF));
+        protected override async Task OnEndReceivingMessageAsync(IMessageBufferReader messageBufferReader, ModbusTransportContext context, CancellationToken cancellationToken)
+        {
+            var messageCrc = CrcUtils.CRC16(messageBufferReader.Buffer);
 
-    //        // Write the low nibble of the CRC
-    //        messageBufferWriter.Push((byte)((crc & 0x00FF) & 0xFF));
+            //check CRC
+            await messageBufferReader.PushFromStreamAsync(2, cancellationToken);
 
-    //        if (PacketLogger != null)
-    //        {
-    //            messageBufferWriter.Log(PacketLogger);
-    //        }
-    //    }
+            PacketLogger?.ReceivedPacket(_messageBuffer.GetBuffer());
 
-    //    protected void CheckCrcIsValid(IMessageBufferReader messageBufferReader)
-    //    {
-    //        var messageCrc = CrcUtils.CRC16(_messageBuffer);
+            CheckCrcIsValid(messageBufferReader, messageCrc);
+        }
 
-    //        //check CRC
-    //        messageBufferReader.PushFromStream(2);
+        protected override void OnEndSendingMessage(IMessageBufferWriter messageBufferWriter, ModbusTransportContext context)
+        {
+            AppendCrc(messageBufferWriter);
 
-    //        if (PacketLogger != null)
-    //        {
-    //            messageBufferReader.Log(PacketLogger);
-    //        }
+            PacketLogger?.SendingPacket(_messageBuffer.GetBuffer());
 
-    //        if (_messageBuffer[_messageBuffer.Length - 2] != (byte)(((messageCrc & 0xFF00) >> 8) & 0xFF) ||
-    //            _messageBuffer[_messageBuffer.Length - 1] != (byte)((messageCrc & 0x00FF) & 0xFF))
-    //        {
-    //            throw new ModbusInvalidCRCException($"Invalid CRC: expected {(byte)(((messageCrc & 0xFF00) >> 8) & 0xFF):X2} {(byte)(messageCrc & 0x00FF & 0xFF):X2} received {_messageBuffer[_messageBuffer.Length - 2]:X2} {_messageBuffer[_messageBuffer.Length - 1]:X2}");
-    //        }
-    //    }
+            _messageBuffer.WriteToStream(Stream);
 
-    //}
+            base.OnEndSendingMessage(messageBufferWriter, context);
+        }
+
+        protected override async Task OnEndSendingMessageAsync(IMessageBufferWriter messageBufferWriter, ModbusTransportContext context, CancellationToken cancellationToken)
+        {
+            AppendCrc(messageBufferWriter);
+
+            PacketLogger?.SendingPacket(_messageBuffer.GetBuffer());
+
+            await _messageBuffer.WriteToStreamAsync(Stream, cancellationToken);
+        }
+
+        protected void AppendCrc(IMessageBufferWriter messageBufferWriter)
+        {
+            var crc = CrcUtils.CRC16(messageBufferWriter.Buffer);
+
+            // Write the high nibble of the CRC
+            messageBufferWriter.Push((byte)(((crc & 0xFF00) >> 8) & 0xFF));
+
+            // Write the low nibble of the CRC
+            messageBufferWriter.Push((byte)((crc & 0x00FF) & 0xFF));
+        }
+
+        protected void CheckCrcIsValid(IMessageBufferReader messageBufferReader, ushort messageCrc)
+        {
+            var messageBuffer = messageBufferReader.Buffer;
+
+            byte recvCRC1 = messageBuffer[messageBuffer.Length - 2];
+            byte rectCRC2 = messageBuffer[messageBuffer.Length - 1];
+
+            if (recvCRC1 != (byte)(((messageCrc & 0xFF00) >> 8) & 0xFF) ||
+                rectCRC2 != (byte)((messageCrc & 0x00FF) & 0xFF))
+            {
+                throw new ModbusInvalidCRCException($"Invalid CRC: expected {(byte)(((messageCrc & 0xFF00) >> 8) & 0xFF):X2} {(byte)(messageCrc & 0x00FF & 0xFF):X2} received {recvCRC1:X2} {rectCRC2:X2}");
+            }
+        }
+    }
 }

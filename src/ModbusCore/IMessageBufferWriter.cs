@@ -10,6 +10,6 @@ namespace ModbusCore
 
         int Length { get; }
 
-        void Log(IPacketLogger packetLogger);
+        //void Log(IPacketLogger packetLogger);
     }
 }

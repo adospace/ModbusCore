@@ -103,8 +103,9 @@ namespace ModbusCore
             var responseContext = await ModbusTransport.ReceiveMessageAsync(
                 async (reader) =>
                 {
-                    if (await reader.PushByteFromStreamAsync(cancellationToken) != device.Address)
-                        throw new InvalidOperationException();
+                    var receivedAddress = await reader.PushByteFromStreamAsync(cancellationToken);
+                    if (receivedAddress != device.Address)
+                        throw new InvalidOperationException($"Invalid device id (Received:{receivedAddress} Expected:{device.Address})");
 
                     byte receivedFunctionCode = await reader.PushByteFromStreamAsync(cancellationToken);
 
