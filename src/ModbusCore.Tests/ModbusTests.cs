@@ -115,85 +115,89 @@ namespace ModbusCore.Tests
             clientMemory.InputCoils[15].ShouldBeTrue();
         }
 
-        //[TestMethod]
-        //public void MasterShouldReadHoldingRegistersFromSlave()
-        //{
-        //    var dummyStreamConnectedToSlave = new MockedMemoryStream();
+        [TestMethod]
+        public void MasterShouldReadHoldingRegistersFromSlave()
+        {
+            var dummyStreamConnectedToSlave = new MockedMemoryStream();
 
-        //    var masterMemory = new ModbusMemoryMap();
-        //    var master = new ModbusRTUTransport(masterMemory, dummyStreamConnectedToSlave, 4);
+            var clientMemory = new ModbusMemoryMap();
+            var client = new ModbusClient(new ModbusRTUTransport(_clientStream));
+            var clientDevice = new ModbusDevice(clientMemory, 4);
 
-        //    var slaveMemory = new ModbusMemoryMap();
-        //    var slave = new ModbusRTUTransport(slaveMemory, dummyStreamConnectedToSlave, 4);
+            var serverMemory = new ModbusMemoryMap();
+            var server = new ModbusServer(new ModbusRTUTransport(_serverStream));
+            var serverDevice = new ModbusDevice(serverMemory, 4);
 
-        //    slaveMemory.OutputRegisters[10] = 23;
-        //    slaveMemory.OutputRegisters[15] = 45;
+            serverMemory.OutputRegisters[10] = 12;
+            serverMemory.OutputRegisters[11] = 43;
 
-        //    master.SendReadHoldingRegistersRequest(10, 13); //10...22 (Coil 11 to 23)
+            clientMemory.OutputRegisters[10].ShouldBe(0);
+            clientMemory.OutputRegisters[11].ShouldBe(0);
 
+            Task.Run(() => server.HandleRequest(serverDevice));
 
+            //read only one input
+            client.ReadHoldingRegisters(clientDevice, 10, 1);
 
-        //    slave.HandleReadHoldingRegistersRequest(out var offset, out var count);
+            //slave memory not touched
+            serverMemory.OutputRegisters[10].ShouldBe(12);
+            serverMemory.OutputRegisters[11].ShouldBe(43);
 
-        //    offset.ShouldBe(10);
-        //    count.ShouldBe(13);
+            //master memory is synched
+            clientMemory.OutputRegisters[10].ShouldBe(12);
+            clientMemory.OutputRegisters[11].ShouldBe(0);
 
+            Task.Run(() => server.HandleRequest(serverDevice));
 
+            //read another input
+            client.ReadHoldingRegisters(clientDevice, 11, 1);
 
-        //    slave.HandleReadHoldingRegistersResponse(offset, count);
+            //master memory is synched
+            clientMemory.OutputRegisters[10].ShouldBe(12);
+            clientMemory.OutputRegisters[11].ShouldBe(43);
+        }
 
+        [TestMethod]
+        public void MasterShouldReadInputRegistersFromSlave()
+        {
+            var dummyStreamConnectedToSlave = new MockedMemoryStream();
 
+            var clientMemory = new ModbusMemoryMap();
+            var client = new ModbusClient(new ModbusRTUTransport(_clientStream));
+            var clientDevice = new ModbusDevice(clientMemory, 4);
 
-        //    master.ReceiveReadHoldingRegistersResponse(offset, count);
+            var serverMemory = new ModbusMemoryMap();
+            var server = new ModbusServer(new ModbusRTUTransport(_serverStream));
+            var serverDevice = new ModbusDevice(serverMemory, 4);
 
-        //    //slave memory not touched
-        //    slaveMemory.OutputRegisters[10].ShouldBe(23);
-        //    slaveMemory.OutputRegisters[15].ShouldBe(45);
+            serverMemory.InputRegisters[10] = 12;
+            serverMemory.InputRegisters[11] = 43;
 
-        //    //master memory is synched
-        //    masterMemory.OutputRegisters[10].ShouldBe(23);
-        //    masterMemory.OutputRegisters[15].ShouldBe(45);
-        //}
+            clientMemory.InputRegisters[10].ShouldBe(0);
+            clientMemory.InputRegisters[11].ShouldBe(0);
 
-        //[TestMethod]
-        //public void MasterShouldReadInputRegistersFromSlave()
-        //{
-        //    var dummyStreamConnectedToSlave = new MockedMemoryStream();
+            Task.Run(() => server.HandleRequest(serverDevice));
 
-        //    var masterMemory = new ModbusMemoryMap();
-        //    var master = new ModbusRTUTransport(masterMemory, dummyStreamConnectedToSlave, 4);
+            //read only one input
+            client.ReadInputRegisters(clientDevice, 10, 1);
 
-        //    var slaveMemory = new ModbusMemoryMap();
-        //    var slave = new ModbusRTUTransport(slaveMemory, dummyStreamConnectedToSlave, 4);
+            //slave memory not touched
+            serverMemory.InputRegisters[10].ShouldBe(12);
+            serverMemory.InputRegisters[11].ShouldBe(43);
 
-        //    slaveMemory.InputRegisters[12] = 23;
-        //    slaveMemory.InputRegisters[13] = 45;
+            //master memory is synched
+            clientMemory.InputRegisters[10].ShouldBe(12);
+            clientMemory.InputRegisters[11].ShouldBe(0);
 
-        //    master.SendReadInputRegistersRequest(12, 3); //10...22 (Coil 11 to 23)
+            Task.Run(() => server.HandleRequest(serverDevice));
 
+            //read another input
+            client.ReadInputRegisters(clientDevice, 11, 1);
 
-
-        //    slave.HandleReadInputRegistersRequest(out var offset, out var count);
-
-        //    offset.ShouldBe(12);
-        //    count.ShouldBe(3);
-
-
-
-        //    slave.HandleReadInputRegistersResponse(offset, count);
-
-
-
-        //    master.ReceiveReadInputRegistersResponse(offset, count);
-
-        //    //slave memory not touched
-        //    slaveMemory.InputRegisters[12].ShouldBe(23);
-        //    slaveMemory.InputRegisters[13].ShouldBe(45);
-
-        //    //master memory is synched
-        //    masterMemory.InputRegisters[12].ShouldBe(23);
-        //    masterMemory.InputRegisters[13].ShouldBe(45);
-        //}
+            //master memory is synched
+            clientMemory.InputRegisters[10].ShouldBe(12);
+            clientMemory.InputRegisters[11].ShouldBe(43);
+        }
 
         //[TestMethod]
         //public void MasterShouldWriteSingleCoilToSlave()

@@ -33,7 +33,7 @@ namespace ModbusCore
                 async reader =>
                 {
                     var value = await reader.PushByteFromStreamAsync(cancellationToken) == 0xFF;
-                    reader.PushByteFromStream();
+                    await reader.PushByteFromStreamAsync(cancellationToken);
 
                     return value;
                 }, cancellationToken);
@@ -59,7 +59,9 @@ namespace ModbusCore
                 },
                 async reader =>
                 {
-                    return await reader.PushShortFromStreamAsync(cancellationToken);
+                    var value = (int)await reader.PushShortFromStreamAsync(cancellationToken);
+
+                    return value;
                 }, cancellationToken);
 
         public void WriteMultipleCoils(ModbusDevice device, int zeroBasedOffset, bool[] values)
@@ -122,7 +124,7 @@ namespace ModbusCore
                     return await reader.PushShortFromStreamAsync(cancellationToken);
                 }, cancellationToken);
 
-        private T Write<T>(ModbusDevice device, ModbusFunctionCode functionCode,int zeroBasedOffset, Action<IMessageBufferWriter> writeAction, Func<IMessageBufferReader, T> readValueFunc)
+        private T Write<T>(ModbusDevice device, ModbusFunctionCode functionCode, int zeroBasedOffset, Action<IMessageBufferWriter> writeAction, Func<IMessageBufferReader, T> readValueFunc) where T : struct
         {
             var requestContext = new ModbusTransportContext()
             {
@@ -145,7 +147,7 @@ namespace ModbusCore
                 (reader) =>
                 {
                     if (reader.PushByteFromStream() != device.Address)
-                        throw new InvalidOperationException();
+                        throw new InvalidOperationException($"Unable to read the address ({device.Address}) from the reply");
 
                     byte receivedFunctionCode = reader.PushByteFromStream();
 
@@ -156,24 +158,25 @@ namespace ModbusCore
                     }
 
                     if (receivedFunctionCode != (byte)functionCode)
-                        throw new InvalidOperationException();
+                        throw new InvalidOperationException($"Expected function {functionCode} from reply: received {receivedFunctionCode} instead");
 
-                    if ((ushort)((reader.PushByteFromStream() << 8) + (reader.PushByteFromStream() << 0)) != zeroBasedOffset)
-                        throw new InvalidOperationException();
+                    var receivedOffset = reader.PushShortFromStream();
+                    if (receivedOffset != zeroBasedOffset)
+                        throw new InvalidOperationException($"Expected offset {zeroBasedOffset} from reply: received {receivedOffset} instead");
 
                     returnedValue = readValueFunc(reader);
                 });
 
             if (requestContext.TransactionIdentifier != responseContext.TransactionIdentifier)
             {
-                throw new InvalidOperationException();
+                throw new InvalidOperationException($"Transaction identifier mismatch: request identifier is {requestContext.TransactionIdentifier} while response identifier is {responseContext.TransactionIdentifier}");
             }
 
             return returnedValue!;
 
         }
 
-        private async Task<T> WriteAsync<T>(ModbusDevice device, ModbusFunctionCode functionCode, int zeroBasedOffset, Action<IMessageBufferWriter> writeAction, Func<IMessageBufferReader, Task<T>> readValueFunc, CancellationToken cancellationToken)
+        private async Task<T> WriteAsync<T>(ModbusDevice device, ModbusFunctionCode functionCode, int zeroBasedOffset, Action<IMessageBufferWriter> writeAction, Func<IMessageBufferReader, Task<T>> readValueFunc, CancellationToken cancellationToken) where T : struct
         {
             var requestContext = new ModbusTransportContext()
             {
@@ -196,7 +199,7 @@ namespace ModbusCore
                 async (reader) =>
                 {
                     if (await reader.PushByteFromStreamAsync(cancellationToken) != device.Address)
-                        throw new InvalidOperationException();
+                        throw new InvalidOperationException($"Unable to read the address ({device.Address}) from the reply");
 
                     byte receivedFunctionCode = await reader.PushByteFromStreamAsync(cancellationToken);
 
@@ -207,20 +210,21 @@ namespace ModbusCore
                     }
 
                     if (receivedFunctionCode != (byte)functionCode)
-                        throw new InvalidOperationException();
+                        throw new InvalidOperationException($"Expected function {functionCode} from reply: received {receivedFunctionCode} instead");
 
-                    if (await reader.PushByteFromStreamAsync(cancellationToken) != zeroBasedOffset)
-                        throw new InvalidOperationException();
+                    var receivedOffset = await reader.PushShortFromStreamAsync(cancellationToken);
+                    if (receivedOffset != zeroBasedOffset)
+                        throw new InvalidOperationException($"Expected offset {zeroBasedOffset} from reply: received {receivedOffset} instead");
 
                     returnedValue = await readValueFunc(reader);
                 }, cancellationToken);
 
             if (requestContext.TransactionIdentifier != responseContext.TransactionIdentifier)
             {
-                throw new InvalidOperationException();
+                throw new InvalidOperationException($"Transaction identifier mismatch: request identifier is {requestContext.TransactionIdentifier} while response identifier is {responseContext.TransactionIdentifier}");
             }
 
-            return returnedValue!;
+            return returnedValue;
         }
     }
 }

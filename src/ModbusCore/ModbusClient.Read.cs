@@ -41,7 +41,7 @@ namespace ModbusCore
                 (reader) =>
                 {
                     if (reader.PushByteFromStream() != device.Address)
-                        throw new InvalidOperationException();
+                        throw new InvalidOperationException($"Unable to read the address ({device.Address}) from the reply");
 
                     byte receivedFunctionCode = reader.PushByteFromStream();
 
@@ -52,7 +52,7 @@ namespace ModbusCore
                     }
 
                     if (receivedFunctionCode != (byte)functionCode)
-                        throw new InvalidOperationException();
+                        throw new InvalidOperationException($"Expected function {functionCode} from reply: received {receivedFunctionCode} instead");
 
                     var byteCount = reader.PushByteFromStream();
 
@@ -63,7 +63,7 @@ namespace ModbusCore
 
             if (responseContext.TransactionIdentifier != requestContext.TransactionIdentifier)
             {
-                throw new InvalidOperationException();
+                throw new InvalidOperationException($"Transaction identifier mismatch: request identifier is {requestContext.TransactionIdentifier} while response identifier is {responseContext.TransactionIdentifier}");
             }
 
             actionWithReturnedBuffer(receivedBuffer!);
@@ -116,7 +116,7 @@ namespace ModbusCore
                     }
 
                     if (receivedFunctionCode != (byte)functionCode)
-                        throw new InvalidOperationException();
+                        throw new InvalidOperationException($"Expected function {functionCode} from reply: received {receivedFunctionCode} instead");
 
                     var byteCount = await reader.PushByteFromStreamAsync(cancellationToken);
 
@@ -128,7 +128,7 @@ namespace ModbusCore
 
             if (responseContext.TransactionIdentifier != requestContext.TransactionIdentifier)
             {
-                throw new InvalidOperationException();
+                throw new InvalidOperationException($"Transaction identifier mismatch: request identifier is {requestContext.TransactionIdentifier} while response identifier is {responseContext.TransactionIdentifier}");
             }
 
             actionWithReturnedBuffer(receivedBuffer!);
